@@ -1,0 +1,37 @@
+DAILY TASK MANAGER — SUPABASE + VERCEL
+======================================
+
+DESIGN STATUS
+-------------
+No redesign was made.
+- assets/style.css = unchanged
+- assets/app.js    = unchanged
+- Google Sheet flow/mapping = preserved
+
+SUPABASE
+--------
+1. Create/open a Supabase project.
+2. SQL Editor -> run: supabase/01_schema.sql
+3. SQL Editor -> run: supabase/02_migrate_current_data.sql
+4. Copy Project URL.
+5. Copy the server-side Secret key (sb_secret_...).
+
+VERCEL
+------
+Add these Environment Variables:
+
+SUPABASE_URL = your Supabase Project URL
+SUPABASE_SECRET_KEY = your sb_secret_... server key
+SESSION_SECRET = random secret, at least 32 characters
+
+Then deploy this whole folder to Vercel.
+
+LOGIN
+-----
+Email: admin@example.com
+Password: Admin123!
+
+GOOGLE SHEET
+------------
+The existing Sheet URL and gid from the uploaded project are included in the migration.
+The connector still uses the same public CSV method and does not require Google OAuth/API keys.

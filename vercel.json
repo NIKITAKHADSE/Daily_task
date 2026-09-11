@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api.php", "destination": "/api/router" }
+  ],
+  "functions": {
+    "api/router.js": {
+      "maxDuration": 60
+    }
+  }
+}
