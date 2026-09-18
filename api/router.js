@@ -341,7 +341,7 @@ module.exports = async function handler(req,res) {
         const daily=[...g.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({...r,completion:completion(r.completed,r.eligible)})); return send(res,{ok:true,daily});
       }
       if(action==='analytics.status') {
-        const g=new Map(); tasks.filter(t=>t.status!=='Cancelled').forEach(t=>g.set(t.status,(g.get(t.status)||0)+1));
+        const g=new Map(); tasks.filter(t=>t.source==='google_sheet'&&t.status!=='Cancelled').forEach(t=>g.set(t.status,(g.get(t.status)||0)+1));
         return send(res,{ok:true,items:[...g].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value)});
       }
       if(action==='analytics.categories') {
