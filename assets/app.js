@@ -42,6 +42,7 @@ function esc(v='') {
 }
 
 function fmt(v) { return v ? String(v).replace('T',' ') : '-'; }
+function statusText(value) { return String(value||'') === 'Not Started' ? 'Changes' : String(value||'-'); }
 function todayLocal() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
   const get = type => parts.find(part => part.type===type)?.value;
@@ -216,7 +217,7 @@ async function loadDashboard() {
     chart('employeeTotalChart','bar',e.employees.map(x=>`${x.name} (${x.total})`),e.employees.map(x=>x.total),'Total Tasks',{
       horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
     });
-    chart('statusChart','doughnut',st.items.map(x=>`${x.label} (${x.value})`),st.items.map(x=>x.value),'Tasks');
+    chart('statusChart','doughnut',st.items.map(x=>`${statusText(x.label)} (${x.value})`),st.items.map(x=>x.value),'Tasks');
     chart('dailyChart','line',day.daily.map(x=>x.date),day.daily.map(x=>x.completion),'Completion %');
     chart('todayChart','bar',today.employees.map(x=>x.name),today.employees.map(x=>x.completion),'Today %');
     chart('categoryChart','bar',cat.items.map(x=>x.label),cat.items.map(x=>x.completion),'Completion %');
@@ -331,7 +332,7 @@ async function loadTasks() {
         <td>${linkifyRef(t.reference_links)}</td>
         <td>${esc(t.time_taken||'-')}</td>
         <td><span class="badge">${esc(t.raw_priority||t.priority)}</span></td>
-        <td><span class="badge">${esc(t.raw_status||t.status)}</span><div class="cell-small">${esc(t.status)}</div></td>
+        <td><span class="badge">${esc(statusText(t.raw_status||t.status))}</span><div class="cell-small">${esc(statusText(t.status))}</div></td>
         <td>${esc(t.editor_remarks||t.remarks||'-')}</td>
         <td>${esc(t.acc_manager_remark||'-')}</td>
         <td>${esc(t.manager_remark||'-')}</td>

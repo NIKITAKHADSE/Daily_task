@@ -122,7 +122,7 @@
           <input id="taskDateFilter" type="date" class="task-date hidden" aria-label="Task date">
           <input id="taskFromFilter" type="date" class="task-range hidden" aria-label="Tasks from date">
           <input id="taskToFilter" type="date" class="task-range hidden" aria-label="Tasks to date">
-          <select id="taskStatusFilter"><option value="">All Status</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select>
+          <select id="taskStatusFilter"><option value="">All Status</option><option value="Not Started">Changes</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select>
           <select id="taskPriorityFilter"><option value="">All Priority</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
           <select id="taskSourceFilter"><option value="">All Sources</option><option value="google_sheet">Google Sheet</option><option value="manual">Manual</option></select>
           <button id="clearTaskFilters" type="button" class="secondary">Clear</button>
@@ -230,7 +230,7 @@
       <label>Category<select id="taskCategory"></select></label>
       <label>Priority<select id="taskPriority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></label>
       <label>Due Date & Time<input type="datetime-local" id="taskDue"></label>
-      <label>Status<select id="taskStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select></label>
+      <label>Status<select id="taskStatus"><option value="Not Started">Changes</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select></label>
       <label class="wide">Remarks<textarea id="taskRemarks"></textarea></label>
     </div>
     <div class="modal-actions"><button type="button" class="secondary" data-close="taskModal">Cancel</button><button>Save Task</button></div>
