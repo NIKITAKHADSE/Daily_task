@@ -241,7 +241,7 @@ module.exports = async function handler(req,res) {
     }
 
     if(action.startsWith('analytics.')) {
-      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,category_id,priority,due_date,status,client_name');
+      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,category_id,priority,due_date,status,client_name,poc,content_responsible');
       if(action==='analytics.dashboard') {
         const total=tasks.length, completed=tasks.filter(t=>t.status==='Completed').length, pending=tasks.filter(t=>t.status==='Pending').length,
           in_progress=tasks.filter(t=>t.status==='In Progress').length, blocked=tasks.filter(t=>t.status==='Blocked').length,
@@ -279,6 +279,24 @@ module.exports = async function handler(req,res) {
         });
         const items=[...groups.values()].map(row=>({...row,completion:completion(row.completed,row.eligible),employees:[...row.employees.values()].map(employee=>({...employee,completion:completion(employee.completed,employee.eligible)})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name))})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.label.localeCompare(b.label));
         return send(res,{ok:true,items});
+      }
+      if(action==='analytics.clientResponsibilities') {
+        const {users}=await maps();
+        const userMap=new Map(users.map(item=>[Number(item.id),item]));
+        const clients=new Map();
+        tasks.forEach(task=>{
+          const editor=userMap.get(Number(task.employee_id));
+          if(!['Graphic','Video'].includes(editor?.designation)) return;
+          const client=String(task.client_name||'').trim()||'Unassigned Client';
+          const row=clients.get(client)||{client,total:0,completed:0,eligible:0,pocs:new Map(),contentResponsible:new Map()};
+          row.total++; if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
+          const poc=String(task.poc||'').trim(); if(poc) row.pocs.set(poc,(row.pocs.get(poc)||0)+1);
+          const content=String(task.content_responsible||'').trim(); if(content) row.contentResponsible.set(content,(row.contentResponsible.get(content)||0)+1);
+          clients.set(client,row);
+        });
+        const rank=map=>[...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([name,total])=>({name,total}));
+        const items=[...clients.values()].map(row=>({client:row.client,total:row.total,completed:row.completed,completion:completion(row.completed,row.eligible),topPoc:rank(row.pocs)[0]||null,topContentResponsible:rank(row.contentResponsible)[0]||null,pocs:rank(row.pocs),contentResponsible:rank(row.contentResponsible)})).sort((a,b)=>b.total-a.total||b.completion-a.completion||a.client.localeCompare(b.client));
+        return send(res,{ok:true,range:[from,to],items});
       }
       if(action==='analytics.performance') {
         const allTasks=await tasksQuery({},user,'id,employee_id,task_date,status');
