@@ -6,6 +6,7 @@ create table if not exists public.users (
   name text not null,
   email text not null unique,
   password_hash text not null,
+  designation text check (designation in ('Graphic','Video','POC','Content Responsible')),
   role text not null default 'employee' check (role in ('admin','employee')),
   department text,
   status text not null default 'active' check (status in ('active','inactive')),

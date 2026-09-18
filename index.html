@@ -93,6 +93,11 @@
         <div class="card"><div class="card-head"><h2>Priority Performance</h2></div><div class="chart-box"><canvas id="priorityChart"></canvas></div></div>
       </div>
 
+      <div class="card">
+        <div class="card-head"><div><h2>Performance by Designation</h2><p class="help-text">Completion percentage and completed/total tasks for Graphic, Video, POC, and Content Responsible.</p></div></div>
+        <div class="chart-box"><canvas id="designationChart"></canvas></div>
+      </div>
+
       <div class="grid2">
         <div class="card"><div class="card-head"><h2>Client Performance</h2></div><div class="chart-box"><canvas id="clientChart"></canvas></div></div>
         <div class="card"><div class="card-head"><h2>Employee Detail</h2><select id="employeeSelect"></select></div><div id="employeeSummary" class="mini-kpis"></div><div class="chart-box"><canvas id="employeeDailyChart"></canvas></div></div>
@@ -139,7 +144,7 @@
       <div class="card">
         <div class="card-head"><h2>Employees</h2><div class="button-row"><button id="dedupeUsersBtn" class="secondary">Remove duplicates</button><button id="addUserBtn">+ Add User</button></div></div>
         <p class="help-text">Delete unused employees individually. Remove duplicates merges employees with the same name and preserves their task assignments.</p>
-        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Designation</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div>
       </div>
     </section>
 
@@ -221,6 +226,7 @@
     <input type="hidden" id="userId">
     <div class="form-grid">
       <label>Name<input id="userName" required></label><label>Email<input id="userEmail" type="email" required></label>
+      <label>Designation<select id="userDesignation"><option value="">Select designation</option><option>Graphic</option><option>Video</option><option>POC</option><option>Content Responsible</option></select></label>
       <label>Department<input id="userDepartment"></label><label>Role<select id="userRole"><option value="employee">Employee</option><option value="admin">Admin</option></select></label>
       <label>Password<input id="userPassword" type="password" placeholder="Minimum 6 characters"></label><label>Status<select id="userStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
     </div>

@@ -27,6 +27,7 @@ function publicUser(u) {
     id: Number(u.id),
     name: u.name,
     email: u.email,
+    designation: u.designation || '',
     role: u.role,
     department: u.department || '',
     status: u.status

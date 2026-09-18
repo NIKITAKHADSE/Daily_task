@@ -26,7 +26,7 @@ function normalizeHash(hash='') { return String(hash).replace(/^\$2y\$/,'$2b$');
 async function maps() {
   const supa=db();
   const [users,cats]=await Promise.all([
-    fetchAll(()=>supa.from('users').select('id,name,email,department,role,status,created_at')),
+    fetchAll(()=>supa.from('users').select('id,name,email,designation,department,role,status,created_at')),
     fetchAll(()=>supa.from('categories').select('id,name,status'))
   ]);
   return {
@@ -178,20 +178,22 @@ module.exports = async function handler(req,res) {
     if(action==='users') {
       admin();
       if(method==='GET') {
-        const rows=await fetchAll(()=>db().from('users').select('id,name,email,role,department,status,created_at').order('name',{ascending:true}));
+        const rows=await fetchAll(()=>db().from('users').select('id,name,email,designation,role,department,status,created_at').order('name',{ascending:true}));
         return send(res,{ok:true,users:rows});
       }
       requireCsrf(req,session); const input=await body(req);
       if(method==='POST') {
         const name=cleanString(input.name,120), email=cleanString(input.email,180).toLowerCase(), pass=String(input.password||'');
         if(!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || pass.length<6) fail('Enter name, valid email and password of at least 6 characters.',422);
-        const row={name,email,password_hash:await bcrypt.hash(pass,10),role:input.role==='admin'?'admin':'employee',department:cleanString(input.department,120),status:input.status==='inactive'?'inactive':'active'};
+        const designations=['Graphic','Video','POC','Content Responsible'];
+        const row={name,email,password_hash:await bcrypt.hash(pass,10),designation:designations.includes(input.designation)?input.designation:null,role:input.role==='admin'?'admin':'employee',department:cleanString(input.department,120),status:input.status==='inactive'?'inactive':'active'};
         const {error}=await db().from('users').insert(row); if(error){if(error.code==='23505') fail('This email already exists.',409); throw new Error(error.message);}
         return send(res,{ok:true,message:'User added.'},201);
       }
       if(method==='PUT') {
         const id=Number(q.id||0); if(!id) fail('User ID is required.',422);
-        const update={name:cleanString(input.name,120),email:cleanString(input.email,180).toLowerCase(),role:input.role==='admin'?'admin':'employee',department:cleanString(input.department,120),status:input.status==='inactive'?'inactive':'active'};
+        const designations=['Graphic','Video','POC','Content Responsible'];
+        const update={name:cleanString(input.name,120),email:cleanString(input.email,180).toLowerCase(),designation:designations.includes(input.designation)?input.designation:null,role:input.role==='admin'?'admin':'employee',department:cleanString(input.department,120),status:input.status==='inactive'?'inactive':'active'};
         if(String(input.password||'')!=='') update.password_hash=await bcrypt.hash(String(input.password),10);
         const {error}=await db().from('users').update(update).eq('id',id); if(error){if(error.code==='23505') fail('This email already exists.',409); throw new Error(error.message);}
         return send(res,{ok:true,message:'User updated.'});
@@ -260,6 +262,18 @@ module.exports = async function handler(req,res) {
         }).filter(employee=>employee.total>0).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name));
         employees.forEach((r,i)=>{r.rank=i+1;r.level=perfLevel(r.completion);});
         return send(res,{ok:true,employees});
+      }
+      if(action==='analytics.designations') {
+        const {users}=await maps();
+        const userMap=new Map(users.map(item=>[Number(item.id),item]));
+        const labels=['Graphic','Video','POC','Content Responsible'];
+        const groups=new Map(labels.map(label=>[label,{label,total:0,completed:0,eligible:0}]));
+        tasks.forEach(task=>{
+          const designation=userMap.get(Number(task.employee_id))?.designation;
+          const row=groups.get(designation); if(!row) return;
+          row.total++; if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
+        });
+        return send(res,{ok:true,items:[...groups.values()].filter(row=>row.total>0).map(row=>({...row,completion:completion(row.completed,row.eligible)}))});
       }
       if(action==='analytics.performance') {
         const allTasks=await tasksQuery({},user,'id,employee_id,task_date,status');

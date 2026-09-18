@@ -179,10 +179,10 @@ function chart(id, type, labels, data, label, config={}) {
 async function loadDashboard() {
   const p = qp();
   try {
-    const [d,e,day,st,cat,pri,today,over,clients,performance] = await Promise.all([
+    const [d,e,day,st,cat,pri,today,over,clients,performance,designations] = await Promise.all([
       api('analytics.dashboard',{params:p}), api('analytics.employees',{params:p}), api('analytics.daily',{params:p}),
       api('analytics.status',{params:p}), api('analytics.categories',{params:p}), api('analytics.priorities',{params:p}),
-      api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p}), api('analytics.performance')
+      api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p}), api('analytics.performance'), api('analytics.designations',{params:p})
     ]);
     const k = d.data;
     $('#kpis').innerHTML = [
@@ -205,6 +205,7 @@ async function loadDashboard() {
     chart('categoryChart','bar',cat.items.map(x=>x.label),cat.items.map(x=>x.completion),'Completion %');
     chart('priorityChart','bar',pri.items.map(x=>x.label),pri.items.map(x=>x.completion),'Completion %');
     chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %');
+    chart('designationChart','bar',designations.items.map(x=>`${x.label} (${x.completed}/${x.total})`),designations.items.map(x=>x.completion),'Completion %',{percentage:true,backgroundColor:'#f4a524cc',borderColor:'#c77d08'});
     $('#bestPerformance').innerHTML = [performance.week,performance.month].map((item,index) => item ? `<div class="best-performance-item"><span>${index ? 'Best Month' : 'Best Week'}</span><strong>${esc(item.employee_name)}</strong><b>${item.completion}%</b><small>${esc(item.period)} · ${item.completed}/${item.total} tasks completed</small></div>` : `<div class="best-performance-item"><span>${index ? 'Best Month' : 'Best Week'}</span><strong>No task data</strong><small>No assigned tasks available.</small></div>`).join('');
 
     $('#overdueRows').innerHTML = over.tasks.length ? over.tasks.map(t => `<tr><td>${esc(t.employee_name)}</td><td>${esc(t.task_description)}</td><td>${fmt(t.due_date)}</td><td><span class="badge">${esc(t.priority)}</span></td><td>${esc(t.status)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No overdue tasks.</td></tr>';
@@ -384,7 +385,7 @@ async function loadUsers() {
   try {
     const j=await api('users');
     S.users=j.users;
-    $('#userRows').innerHTML=S.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.department||'-')}</td><td>${esc(u.role)}</td><td>${esc(u.status)}</td><td><div class="actions"><button onclick="editUser(${u.id})">Edit</button><button class="danger" onclick="deleteUser(${u.id})"${+u.id===+S.user.id?' disabled title="You cannot delete your own account"':''}>Delete</button></div></td></tr>`).join('');
+    $('#userRows').innerHTML=S.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.designation||'-')}</td><td>${esc(u.department||'-')}</td><td>${esc(u.role)}</td><td>${esc(u.status)}</td><td><div class="actions"><button onclick="editUser(${u.id})">Edit</button><button class="danger" onclick="deleteUser(${u.id})"${+u.id===+S.user.id?' disabled title="You cannot delete your own account"':''}>Delete</button></div></td></tr>`).join('');
   } catch(e) { toast(e.message); }
 }
 
@@ -394,6 +395,7 @@ function openUser(u=null) {
   $('#userModalTitle').textContent=u?'Edit User':'Add User';
   $('#userName').value=u?.name||'';
   $('#userEmail').value=u?.email||'';
+  $('#userDesignation').value=u?.designation||'';
   $('#userDepartment').value=u?.department||'';
   $('#userRole').value=u?.role||'employee';
   $('#userStatus').value=u?.status||'active';
@@ -422,7 +424,7 @@ $('#dedupeUsersBtn')?.addEventListener('click',async()=>{
 $('#userForm')?.addEventListener('submit',async e=>{
   e.preventDefault();
   const id=$('#userId').value;
-  const b={name:$('#userName').value,email:$('#userEmail').value,department:$('#userDepartment').value,role:$('#userRole').value,status:$('#userStatus').value,password:$('#userPassword').value};
+  const b={name:$('#userName').value,email:$('#userEmail').value,designation:$('#userDesignation').value,department:$('#userDepartment').value,role:$('#userRole').value,status:$('#userStatus').value,password:$('#userPassword').value};
   try {
     await api('users',{method:id?'PUT':'POST',params:id?{id}:{},body:b});
     $('#userModal').classList.add('hidden');
