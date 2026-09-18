@@ -55,7 +55,7 @@ create table if not exists public.google_sheet_settings (
   sheet_url text not null default '',
   sheet_id text not null default '',
   gid text not null default '0',
-  sync_interval integer not null default 60,
+  sync_interval integer not null default 86400,
   sync_year integer not null default extract(year from current_date)::integer,
   enabled integer not null default 0 check (enabled in (0,1)),
   last_sync_at text,

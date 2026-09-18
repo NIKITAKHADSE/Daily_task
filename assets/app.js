@@ -43,11 +43,9 @@ function esc(v='') {
 
 function fmt(v) { return v ? String(v).replace('T',' ') : '-'; }
 function todayLocal() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get = type => parts.find(part => part.type===type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 function qp() {
   const range = $('#range').value;
@@ -439,7 +437,7 @@ function sheetSettingsBody() {
   return {
     sheet_url: $('#sheetUrl').value.trim(),
     sync_year: Number($('#sheetYear').value || new Date().getFullYear()),
-    sync_interval: Number($('#sheetInterval').value || 60),
+    sync_interval: Number($('#sheetInterval').value || 86400),
     enabled: $('#sheetEnabled').checked,
   };
 }
@@ -481,11 +479,11 @@ async function loadGoogleSheetSettings() {
     const s=j.settings||{};
     $('#sheetUrl').value=s.sheet_url||'';
     $('#sheetYear').value=s.sync_year||new Date().getFullYear();
-    $('#sheetInterval').value=String(s.sync_interval||60);
+    $('#sheetInterval').value=String(s.sync_interval||86400);
     $('#sheetEnabled').checked=Number(s.enabled)===1;
     const status={
       connected:!!s.sheet_url,enabled:Number(s.enabled)||0,last_sync_at:s.last_sync_at,last_sync_status:s.last_sync_status,
-      last_sync_message:s.last_sync_message,last_sync_count:Number(s.last_sync_count)||0,sync_interval:Number(s.sync_interval)||60
+      last_sync_message:s.last_sync_message,last_sync_count:Number(s.last_sync_count)||0,sync_interval:Number(s.sync_interval)||86400
     };
     renderSheetStatus(status,'#sheetConnectionStatus');
     renderSheetStatus(status,'#sheetMiniStatus');
