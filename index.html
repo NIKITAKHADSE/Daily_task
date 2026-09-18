@@ -31,6 +31,7 @@
     <nav>
       <button data-page="dashboard" class="nav active">Dashboard</button>
       <button data-page="tasks" class="nav">Tasks</button>
+      <button data-page="sharingAnalysis" class="nav">Sharing Analysis</button>
       <button data-page="employees" class="nav admin-only">Employees</button>
       <button data-page="googleSheet" class="nav admin-only">Google Sheet</button>
     </nav>
@@ -146,6 +147,23 @@
           </table>
         </div>
       </div>
+    </section>
+
+    <section id="sharingAnalysisPage" class="page">
+      <div class="toolbar date-toolbar">
+        <div class="toolbar-title"><span class="eyebrow">Content distribution</span><strong>Track where work is shared</strong></div>
+        <select id="sharingRange">
+          <option value="all_data" selected>All Sheet Data</option><option value="today">Today</option><option value="yesterday">Yesterday</option>
+          <option value="this_week">This Week</option><option value="this_month">This Month</option><option value="last_month">Last Month</option>
+        </select>
+        <button id="sharingRefreshBtn" class="secondary">Refresh</button>
+      </div>
+      <div id="sharingKpis" class="kpis"></div>
+      <div class="grid2">
+        <div class="card"><div class="card-head"><div><h2>Sharing Channel Overview</h2><p class="help-text">Tasks classified from the sheet source and sharing notes.</p></div></div><div class="chart-box"><canvas id="sharingChart"></canvas></div></div>
+        <div class="card"><div class="card-head"><div><h2>Channel by Designation</h2><p class="help-text">Graphic, Video, POC, and Content Responsible workload by channel.</p></div></div><div class="chart-box"><canvas id="sharingDesignationChart"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-head"><div><h2>Client Sharing Analysis</h2><p class="help-text">See which clients have the most Google Sheet or WhatsApp-related work.</p></div></div><div class="table-wrap"><table><thead><tr><th>Client</th><th>Google Sheet</th><th>WhatsApp</th><th>Manual</th><th>Total</th><th>Top Channel</th></tr></thead><tbody id="sharingRows"></tbody></table></div></div>
     </section>
 
     <section id="employeesPage" class="page">

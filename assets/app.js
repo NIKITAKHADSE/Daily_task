@@ -109,6 +109,7 @@ $('#logoutBtn')?.addEventListener('click', async () => {
 const pageTitles = {
   dashboard: ['Dashboard','Your work performance updates automatically.'],
   tasks: ['Tasks','View manual tasks and daily Google Sheet tasks.'],
+  sharingAnalysis: ['Sharing Analysis','Analyze Google Sheet and WhatsApp content distribution.'],
   employees: ['Employees','Manage users and Responsible editor employees.'],
   googleSheet: ['Google Sheet','Connect your existing daily task sheet.'],
 };
@@ -123,12 +124,28 @@ $$('.nav').forEach(b => b.addEventListener('click', async () => {
   $('#pageSub').textContent = pageTitles[p]?.[1] || '';
   if (p === 'dashboard') await loadDashboard();
   if (p === 'tasks') await loadTasks();
+  if (p === 'sharingAnalysis') await loadSharingAnalysis();
   if (p === 'employees') await loadUsers();
   if (p === 'googleSheet') await loadGoogleSheetSettings();
   if (innerWidth < 1000) $('.sidebar').classList.remove('open');
 }));
 
 $('#menuBtn')?.addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+
+async function loadSharingAnalysis() {
+  const range=$('#sharingRange')?.value||'all_data';
+  try {
+    const j=await api('analytics.sharing',{params:{range}});
+    const labels={google_sheet:'Google Sheet',whatsapp:'WhatsApp',manual:'Manual'};
+    $('#sharingKpis').innerHTML=Object.entries(j.totals).map(([key,value])=>`<div class="kpi"><span>${labels[key]} Tasks</span><strong>${value}</strong></div>`).join('');
+    chart('sharingChart','doughnut',Object.keys(j.totals).map(key=>labels[key]),Object.values(j.totals),'Tasks');
+    chart('sharingDesignationChart','bar',j.designations.map(row=>row.label),j.designations.map(row=>row.total),'Total Tasks',{horizontal:true,backgroundColor:'#e97963cc',borderColor:'#c45d4b'});
+    $('#sharingRows').innerHTML=j.clients.length?j.clients.map(row=>`<tr><td><strong>${esc(row.client)}</strong></td><td>${row.google_sheet}</td><td>${row.whatsapp}</td><td>${row.manual}</td><td><strong>${row.total}</strong></td><td><span class="badge">${labels[row.top_channel]||'-'}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No sharing data found for this period.</td></tr>';
+  } catch(e) { toast(e.message); }
+}
+
+$('#sharingRange')?.addEventListener('change',loadSharingAnalysis);
+$('#sharingRefreshBtn')?.addEventListener('click',loadSharingAnalysis);
 
 async function loadMeta() {
   const j = await api('meta');

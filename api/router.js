@@ -241,7 +241,7 @@ module.exports = async function handler(req,res) {
     }
 
     if(action.startsWith('analytics.')) {
-      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,category_id,priority,due_date,status,client_name,poc,content_responsible');
+      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,category_id,priority,due_date,status,client_name,poc,content_responsible,source,remarks,editor_remarks,reference_links');
       if(action==='analytics.dashboard') {
         const total=tasks.length, completed=tasks.filter(t=>t.status==='Completed').length, pending=tasks.filter(t=>t.status==='Pending').length,
           in_progress=tasks.filter(t=>t.status==='In Progress').length, blocked=tasks.filter(t=>t.status==='Blocked').length,
@@ -297,6 +297,24 @@ module.exports = async function handler(req,res) {
         const rank=map=>[...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([name,total])=>({name,total}));
         const items=[...clients.values()].map(row=>({client:row.client,total:row.total,completed:row.completed,completion:completion(row.completed,row.eligible),topPoc:rank(row.pocs)[0]||null,topContentResponsible:rank(row.contentResponsible)[0]||null,pocs:rank(row.pocs),contentResponsible:rank(row.contentResponsible)})).sort((a,b)=>b.total-a.total||b.completion-a.completion||a.client.localeCompare(b.client));
         return send(res,{ok:true,range:[from,to],items});
+      }
+      if(action==='analytics.sharing') {
+        const {users}=await maps();
+        const userMap=new Map(users.map(item=>[Number(item.id),item]));
+        const totals={google_sheet:0,whatsapp:0,manual:0};
+        const designationTotals=new Map(['Graphic','Video','POC','Content Responsible'].map(label=>[label,{google_sheet:0,whatsapp:0,manual:0,total:0}]));
+        const clients=new Map();
+        tasks.forEach(task=>{
+          const searchable=[task.remarks,task.editor_remarks,task.reference_links,task.task_description].join(' ').toLowerCase();
+          const channel=/whats\s*app|whastp|whatsapp/.test(searchable)?'whatsapp':task.source==='google_sheet'?'google_sheet':'manual';
+          totals[channel]++;
+          const designation=userMap.get(Number(task.employee_id))?.designation;
+          const designationRow=designationTotals.get(designation); if(designationRow){designationRow[channel]++;designationRow.total++;}
+          const client=String(task.client_name||'').trim()||'Unassigned Client';
+          const row=clients.get(client)||{client,google_sheet:0,whatsapp:0,manual:0,total:0}; row[channel]++; row.total++; clients.set(client,row);
+        });
+        const items=[...clients.values()].map(row=>({...row,top_channel:Object.entries(row).filter(([key])=>['google_sheet','whatsapp','manual'].includes(key)).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-'})).sort((a,b)=>b.total-a.total||a.client.localeCompare(b.client));
+        return send(res,{ok:true,range:[from,to],totals,designations:[...designationTotals].map(([label,row])=>({label,...row})),clients:items});
       }
       if(action==='analytics.performance') {
         const allTasks=await tasksQuery({},user,'id,employee_id,task_date,status');
