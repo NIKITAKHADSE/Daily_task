@@ -10,6 +10,7 @@ function send(res, data, status=200) {
   res.end(JSON.stringify(data));
 }
 function fail(message,status=400){const e=new Error(message);e.status=status;throw e;}
+function employeeNameKey(name) { return String(name||'').trim().replace(/\s+/g,' ').toLowerCase(); }
 async function body(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (_) { return {}; } }
@@ -195,7 +196,46 @@ module.exports = async function handler(req,res) {
         const {error}=await db().from('users').update(update).eq('id',id); if(error){if(error.code==='23505') fail('This email already exists.',409); throw new Error(error.message);}
         return send(res,{ok:true,message:'User updated.'});
       }
+      if(method==='DELETE') {
+        const id=Number(q.id||0); if(!id) fail('Employee ID is required.',422);
+        if(id===Number(user.id)) fail('You cannot delete your own account.',409);
+        const {data:target,error:targetError}=await db().from('users').select('id,name,role').eq('id',id).maybeSingle();
+        if(targetError) throw new Error(targetError.message);
+        if(!target) fail('Employee not found.',404);
+        const {count,error:countError}=await db().from('tasks').select('id',{count:'exact',head:true}).eq('employee_id',id);
+        if(countError) throw new Error(countError.message);
+        if(Number(count||0)>0) fail(`${target.name} has ${count} task(s). Deactivate the employee, or use Remove duplicates to merge duplicate records without losing tasks.`,409);
+        const {error}=await db().from('users').delete().eq('id',id); if(error) throw new Error(error.message);
+        return send(res,{ok:true,message:'Employee deleted.'});
+      }
       fail('Method not allowed.',405);
+    }
+
+    if(action==='users.dedupe' && method==='POST') {
+      admin(); requireCsrf(req,session);
+      const users=await fetchAll(()=>db().from('users').select('id,name,email,role,status,created_at').eq('role','employee').order('id',{ascending:true}));
+      const groups=new Map();
+      for(const item of users) {
+        const key=employeeNameKey(item.name); if(!key) continue;
+        const group=groups.get(key)||[]; group.push(item); groups.set(key,group);
+      }
+      let removed=0, reassigned=0, groupsMerged=0;
+      for(const group of groups.values()) {
+        if(group.length<2) continue;
+        group.sort((a,b)=>{
+          const aSheet=String(a.email||'').endsWith('@local.invalid')?1:0;
+          const bSheet=String(b.email||'').endsWith('@local.invalid')?1:0;
+          return aSheet-bSheet || (a.status==='active'?-1:1)-(b.status==='active'?-1:1) || Number(a.id)-Number(b.id);
+        });
+        const keep=group[0], duplicates=group.slice(1), duplicateIds=duplicates.map(x=>Number(x.id));
+        const {count,error:updateError}=await db().from('tasks').update({employee_id:Number(keep.id)},{count:'exact'}).in('employee_id',duplicateIds);
+        if(updateError) throw new Error(updateError.message);
+        const {error:deleteError}=await db().from('users').delete().in('id',duplicateIds);
+        if(deleteError) throw new Error(deleteError.message);
+        reassigned+=Number(count||0); removed+=duplicateIds.length; groupsMerged++;
+      }
+      const message=removed ? `Removed ${removed} duplicate employee record(s) across ${groupsMerged} name(s) and preserved ${reassigned} task assignment(s).` : 'No duplicate employee names were found.';
+      return send(res,{ok:true,message,removed,reassigned,groups_merged:groupsMerged});
     }
 
     if(action.startsWith('analytics.')) {
@@ -217,9 +257,29 @@ module.exports = async function handler(req,res) {
         const employees=users.filter(u=>u.status==='active'&&u.role==='employee'&&(user.role==='admin'||Number(u.id)===Number(user.id))).map(u=>{
           const mine=source.filter(t=>Number(t.employee_id)===Number(u.id)); const elig=mine.filter(t=>t.status!=='Cancelled').length; const comp=mine.filter(t=>t.status==='Completed').length;
           return {id:u.id,name:u.name,department:u.department,total:mine.length,completed:comp,pending:mine.filter(t=>t.status==='Pending').length,in_progress:mine.filter(t=>t.status==='In Progress').length,eligible:elig,completion:completion(comp,elig)};
-        }).sort((a,b)=>b.completion-a.completion||a.name.localeCompare(b.name));
+        }).filter(employee=>employee.total>0).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name));
         employees.forEach((r,i)=>{r.rank=i+1;r.level=perfLevel(r.completion);});
         return send(res,{ok:true,employees});
+      }
+      if(action==='analytics.performance') {
+        const allTasks=await tasksQuery({},user,'id,employee_id,task_date,status');
+        const {userMap}=await maps();
+        const groups={week:new Map(),month:new Map()};
+        allTasks.forEach(task=>{
+          const date=String(task.task_date||'').slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+          const day=new Date(`${date}T00:00:00Z`); const monday=new Date(day); const offset=(day.getUTCDay()+6)%7; monday.setUTCDate(day.getUTCDate()-offset);
+          const weekStart=monday.toISOString().slice(0,10); const month=date.slice(0,7);
+          [[groups.week,weekStart],[groups.month,month]].forEach(([map,key])=>{
+            const row=map.get(key)||{period:key,total:0,completed:0,eligible:0,employeeTotals:new Map()}; row.total++;
+            if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
+            const employeeId=Number(task.employee_id); const employee=row.employeeTotals.get(employeeId)||{employeeId,total:0,completed:0}; employee.total++; if(task.status==='Completed') employee.completed++; row.employeeTotals.set(employeeId,employee); map.set(key,row);
+          });
+        });
+        const best=(map,format)=>[...map.values()].flatMap(row=>[...row.employeeTotals.values()].map(employee=>{
+          const userInfo=userMap.get(employee.employeeId);
+          return {period:format(row.period),total:employee.total,completed:employee.completed,completion:completion(employee.completed,employee.total),employee_name:userInfo?.name||'Unassigned'};
+        })).sort((a,b)=>b.completion-a.completion||b.completed-a.completed||b.total-a.total||b.period.localeCompare(a.period))[0]||null;
+        return send(res,{ok:true,week:best(groups.week,key=>`Week of ${key}`),month:best(groups.month,key=>key)});
       }
       if(action==='analytics.daily') {
         const g=new Map(); for(const t of tasks){const r=g.get(t.task_date)||{date:t.task_date,total:0,completed:0,pending:0,eligible:0};r.total++;if(t.status==='Completed')r.completed++;if(t.status==='Pending')r.pending++;if(t.status!=='Cancelled')r.eligible++;g.set(t.task_date,r);}

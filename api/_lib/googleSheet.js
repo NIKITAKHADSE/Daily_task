@@ -107,6 +107,9 @@ function normalizeSheetPriority(raw) {
 function emailSlug(name) {
   return String(name||'employee').toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'') || 'employee';
 }
+function employeeNameKey(name) {
+  return String(name||'').trim().replace(/\s+/g,' ').toLowerCase();
+}
 
 async function getSettings() {
   const {data,error}=await db().from('google_sheet_settings').select('*').eq('id',1).maybeSingle();
@@ -122,11 +125,11 @@ async function ensureUsersAndCategories(parsed) {
   const supa=db();
   let users=await fetchAll(()=>supa.from('users').select('id,name,email'));
   let cats=await fetchAll(()=>supa.from('categories').select('id,name'));
-  const userMap=new Map(users.map(u=>[String(u.name).toLowerCase(),u]));
+  const userMap=new Map(users.map(u=>[employeeNameKey(u.name),u]));
   const emailSet=new Set(users.map(u=>String(u.email).toLowerCase()));
   const missingUsers=[];
   for(const item of parsed) {
-    const key=item.editor.toLowerCase();
+    const key=employeeNameKey(item.editor);
     if(userMap.has(key)) continue;
     const slug=emailSlug(item.editor); let email=`sheet.${slug}@local.invalid`, n=2;
     while(emailSet.has(email.toLowerCase())) email=`sheet.${slug}.${n++}@local.invalid`;
@@ -150,7 +153,7 @@ async function ensureUsersAndCategories(parsed) {
     cats=await fetchAll(()=>supa.from('categories').select('id,name'));
   }
   return {
-    userMap:new Map(users.map(u=>[String(u.name).toLowerCase(),u])),
+    userMap:new Map(users.map(u=>[employeeNameKey(u.name),u])),
     catMap:new Map(cats.map(c=>[String(c.name).toLowerCase(),c]))
   };
 }
@@ -208,7 +211,7 @@ async function syncGoogleSheet(force=false) {
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
     const now=indiaDateTimeString();
     const snapshot=parsed.map(item=>({
-      employee_id:Number(userMap.get(item.editor.toLowerCase()).id), task_date:item.date, task_description:item.task,
+      employee_id:Number(userMap.get(employeeNameKey(item.editor)).id), task_date:item.date, task_description:item.task,
       category_id:item.type ? Number(catMap.get(item.type.toLowerCase())?.id || 0) || null : null,
       priority:item.priority, due_date:null, status:item.status, remarks:item.editor_remarks,
       client_name:item.client, task_type:item.type, poc:item.poc, content_responsible:item.content_responsible,

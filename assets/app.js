@@ -141,20 +141,37 @@ async function loadMeta() {
   $('#taskCategory').innerHTML = '<option value="">No Category</option>' + j.categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
 }
 
-function chart(id, type, labels, data, label) {
+function chart(id, type, labels, data, label, config={}) {
   if (typeof Chart === 'undefined') return;
   S.charts[id]?.destroy();
   const ctx = $('#'+id);
   if (!ctx) return;
   const isCircle = type === 'doughnut' || type === 'pie';
+  const horizontal = config.horizontal === true;
+  const percentage = config.percentage === true || label.includes('%');
+  const palette=['#14b88a','#4f7cff','#f6a723','#ec6573','#8b6ee8','#20a5c7','#f07d3d'];
+  const defaultBackground=isCircle ? labels.map((_,i)=>palette[i%palette.length]) : type==='line' ? '#14b88a22' : '#14b88acc';
+  const defaultBorder=isCircle ? '#ffffff' : '#11926f';
   S.charts[id] = new Chart(ctx, {
     type,
-    data: { labels, datasets: [{ label, data, borderWidth:2, tension:.3 }] },
+    data: { labels, datasets: [{
+      label, data, borderWidth:isCircle?3:2, tension:.35,
+      backgroundColor:config.backgroundColor||defaultBackground,
+      borderColor:config.borderColor||defaultBorder,
+      fill:type==='line',pointRadius:type==='line'?3:0,pointHoverRadius:type==='line'?6:0,
+      borderRadius:type==='bar'?8:0,borderSkipped:false
+    }] },
     options: {
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{ legend:{ display:isCircle } },
-      scales:isCircle ? {} : { y:{ beginAtZero:true, max:100 } }
+      indexAxis:horizontal ? 'y' : 'x',
+      plugins:{
+        legend:{ display:isCircle, position:'bottom', labels:{usePointStyle:true,padding:18} },
+        tooltip:{callbacks:{label:context=>`${context.dataset.label}: ${context.raw}${percentage?'%':''}`}}
+      },
+      scales:isCircle ? {} : horizontal
+        ? { x:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) }, y:{ grid:{display:false} } }
+        : { y:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) } }
     }
   });
 }
@@ -162,10 +179,10 @@ function chart(id, type, labels, data, label) {
 async function loadDashboard() {
   const p = qp();
   try {
-    const [d,e,day,st,cat,pri,today,over,clients] = await Promise.all([
+    const [d,e,day,st,cat,pri,today,over,clients,performance] = await Promise.all([
       api('analytics.dashboard',{params:p}), api('analytics.employees',{params:p}), api('analytics.daily',{params:p}),
       api('analytics.status',{params:p}), api('analytics.categories',{params:p}), api('analytics.priorities',{params:p}),
-      api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p})
+      api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p}), api('analytics.performance')
     ]);
     const k = d.data;
     $('#kpis').innerHTML = [
@@ -173,19 +190,22 @@ async function loadDashboard() {
       ['Blocked',k.blocked],['Overdue',k.overdue],['Completion %',k.completion+'%'],['Productivity %',k.productivity+'%']
     ].map(x => `<div class="kpi"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
 
-    $('#employeeRows').innerHTML = e.employees.length ? e.employees.map(r => `<tr>
-      <td>#${r.rank}</td><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.department||'')}</span></td>
-      <td>${r.total}</td><td>${r.completed}</td><td>${r.pending}</td><td>${r.in_progress}</td><td><b>${r.completion}%</b></td>
-      <td><span class="badge level-${r.level.split(' ')[0]}">${r.level}</span></td>
-    </tr>`).join('') : '<tr><td colspan="8" class="empty">No task data yet.</td></tr>';
-
-    chart('employeeChart','bar',e.employees.map(x=>x.name),e.employees.map(x=>x.completion),'Completion %');
+    const employeeChartHeight=Math.max(310,e.employees.length*38);
+    $('#employeeCompletionChartBox').style.height=`${employeeChartHeight}px`;
+    $('#employeeTotalChartBox').style.height=`${employeeChartHeight}px`;
+    chart('employeeCompletionChart','bar',e.employees.map(x=>`${x.name} (${x.completed}/${x.total})`),e.employees.map(x=>x.completion),'Completion %',{
+      horizontal:true,percentage:true,backgroundColor:'#36a984cc',borderColor:'#167d62'
+    });
+    chart('employeeTotalChart','bar',e.employees.map(x=>`${x.name} (${x.total})`),e.employees.map(x=>x.total),'Total Tasks',{
+      horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
+    });
     chart('statusChart','doughnut',st.items.map(x=>x.label),st.items.map(x=>x.value),'Tasks');
     chart('dailyChart','line',day.daily.map(x=>x.date),day.daily.map(x=>x.completion),'Completion %');
     chart('todayChart','bar',today.employees.map(x=>x.name),today.employees.map(x=>x.completion),'Today %');
     chart('categoryChart','bar',cat.items.map(x=>x.label),cat.items.map(x=>x.completion),'Completion %');
     chart('priorityChart','bar',pri.items.map(x=>x.label),pri.items.map(x=>x.completion),'Completion %');
     chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %');
+    $('#bestPerformance').innerHTML = [performance.week,performance.month].map((item,index) => item ? `<div class="best-performance-item"><span>${index ? 'Best Month' : 'Best Week'}</span><strong>${esc(item.employee_name)}</strong><b>${item.completion}%</b><small>${esc(item.period)} · ${item.completed}/${item.total} tasks completed</small></div>` : `<div class="best-performance-item"><span>${index ? 'Best Month' : 'Best Week'}</span><strong>No task data</strong><small>No assigned tasks available.</small></div>`).join('');
 
     $('#overdueRows').innerHTML = over.tasks.length ? over.tasks.map(t => `<tr><td>${esc(t.employee_name)}</td><td>${esc(t.task_description)}</td><td>${fmt(t.due_date)}</td><td><span class="badge">${esc(t.priority)}</span></td><td>${esc(t.status)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No overdue tasks.</td></tr>';
     await loadEmployeeDetail();
@@ -253,14 +273,23 @@ async function loadTasks() {
       source:$('#taskSourceFilter').value,
       from, to,
     }});
-    S.tasks = j.tasks;
+    const today=todayLocal();
+    S.tasks=[...j.tasks].sort((a,b)=>{
+      const aToday=a.task_date===today ? 1 : 0;
+      const bToday=b.task_date===today ? 1 : 0;
+      if(aToday!==bToday) return bToday-aToday;
+      const dateOrder=String(b.task_date||'').localeCompare(String(a.task_date||''));
+      if(dateOrder) return dateOrder;
+      return Number(b.id||0)-Number(a.id||0);
+    });
     $('#taskResultCount').textContent = `${S.tasks.length} task${S.tasks.length===1?'':'s'}`;
     $('#taskPeriodLabel').textContent = period;
     $('#taskRows').innerHTML = S.tasks.length ? S.tasks.map(t => {
       const sheet = t.source === 'google_sheet';
       const action = sheet ? '<span class="readonly-label">Edit in Google Sheet</span>' : `<div class="actions"><button onclick="editTask(${t.id})">Edit</button><button class="danger" onclick="deleteTask(${t.id})">Delete</button></div>`;
-      return `<tr>
-        <td>${esc(t.task_date)}</td>
+      const isToday=t.task_date===today;
+      return `<tr class="${isToday?'today-task-row':''}">
+        <td>${esc(t.task_date)}${isToday?'<div><span class="today-badge">Today</span></div>':''}</td>
         <td><b>${esc(t.client_name||'-')}</b></td>
         <td>${esc(t.task_type||t.category_name||'-')}</td>
         <td>${esc(t.poc||'-')}</td>
@@ -355,7 +384,7 @@ async function loadUsers() {
   try {
     const j=await api('users');
     S.users=j.users;
-    $('#userRows').innerHTML=S.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.department||'-')}</td><td>${esc(u.role)}</td><td>${esc(u.status)}</td><td><button onclick="editUser(${u.id})">Edit</button></td></tr>`).join('');
+    $('#userRows').innerHTML=S.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.department||'-')}</td><td>${esc(u.role)}</td><td>${esc(u.status)}</td><td><div class="actions"><button onclick="editUser(${u.id})">Edit</button><button class="danger" onclick="deleteUser(${u.id})"${+u.id===+S.user.id?' disabled title="You cannot delete your own account"':''}>Delete</button></div></td></tr>`).join('');
   } catch(e) { toast(e.message); }
 }
 
@@ -375,6 +404,21 @@ function openUser(u=null) {
 
 $('#addUserBtn')?.addEventListener('click',()=>openUser());
 window.editUser=id=>openUser(S.users.find(x=>+x.id===+id));
+window.deleteUser=async id=>{
+  const employee=S.users.find(x=>+x.id===+id); if(!employee) return;
+  if(!confirm(`Delete ${employee.name}? Employees with assigned tasks cannot be deleted.`)) return;
+  try {
+    const j=await api('users',{method:'DELETE',params:{id}});
+    toast(j.message); await loadMeta(); await loadUsers();
+  } catch(er) { toast(er.message); }
+};
+$('#dedupeUsersBtn')?.addEventListener('click',async()=>{
+  if(!confirm('Merge employees that have the same name? Their tasks will be moved to one employee record before duplicates are deleted.')) return;
+  try {
+    const j=await api('users.dedupe',{method:'POST',body:{}});
+    toast(j.message); await loadMeta(); await loadUsers(); await loadDashboard();
+  } catch(er) { toast(er.message); }
+});
 $('#userForm')?.addEventListener('submit',async e=>{
   e.preventDefault();
   const id=$('#userId').value;

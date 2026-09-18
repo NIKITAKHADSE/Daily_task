@@ -39,7 +39,7 @@
 
   <main>
     <header>
-      <button id="menuBtn" class="menu">☰</button>
+      <button id="menuBtn" class="menu" aria-label="Open navigation">&#9776;</button>
       <div><h1 id="pageTitle">Dashboard</h1><p id="pageSub">Your work performance updates automatically.</p></div>
       <div class="user-pill" id="topUser"></div>
     </header>
@@ -49,9 +49,9 @@
         <div class="toolbar-title"><span class="eyebrow">Report period</span><strong>Scan tasks by month or date</strong></div>
         <select id="range">
           <option value="all_data">All Sheet Data</option>
-          <option value="today">Today</option><option value="yesterday">Yesterday</option>
+          <option value="today" selected>Today</option><option value="yesterday">Yesterday</option>
           <option value="this_week">This Week</option><option value="last_week">Last Week</option>
-          <option value="this_month" selected>This Month</option><option value="last_month">Last Month</option>
+          <option value="this_month">This Month</option><option value="last_month">Last Month</option>
           <option value="selected_month">Choose Month</option><option value="exact_date">Choose Date</option>
           <option value="custom">Custom Range</option>
         </select>
@@ -65,14 +65,22 @@
 
       <div id="kpis" class="kpis"></div>
 
-      <div class="grid2">
-        <div class="card"><div class="card-head"><h2>Employee Performance</h2></div><div class="chart-box"><canvas id="employeeChart"></canvas></div></div>
-        <div class="card"><div class="card-head"><h2>Task Status</h2></div><div class="chart-box"><canvas id="statusChart"></canvas></div></div>
+      <div class="card"><div class="card-head"><h2>Task Status</h2></div><div class="chart-box"><canvas id="statusChart"></canvas></div></div>
+
+      <div class="grid2 employee-graphs">
+        <div class="card">
+          <div class="card-head"><div><h2>Employee Task Completion</h2><p class="help-text">Completed and remaining assigned tasks for each employee.</p></div></div>
+          <div class="employee-chart-scroll"><div id="employeeCompletionChartBox" class="chart-box employee-chart-box"><canvas id="employeeCompletionChart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h2>Total Tasks by Employee</h2><p class="help-text">Total assigned tasks for each employee in the selected period.</p></div></div>
+          <div class="employee-chart-scroll"><div id="employeeTotalChartBox" class="chart-box employee-chart-box"><canvas id="employeeTotalChart"></canvas></div></div>
+        </div>
       </div>
 
-      <div class="card">
-        <div class="card-head"><h2>Employee Ranking</h2></div>
-        <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Employee</th><th>Total</th><th>Completed</th><th>Pending</th><th>In Progress</th><th>Completion</th><th>Level</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+      <div class="card best-performance-card">
+        <div class="card-head"><div><h2>Best Performance</h2><p class="help-text">Top completion performance across all available task dates.</p></div></div>
+        <div id="bestPerformance" class="best-performance-grid"></div>
       </div>
 
       <div class="grid2">
@@ -129,8 +137,8 @@
 
     <section id="employeesPage" class="page">
       <div class="card">
-        <div class="card-head"><h2>Employees</h2><button id="addUserBtn">+ Add User</button></div>
-        <p class="help-text">When a new Responsible editor name appears in Google Sheet, an employee is created automatically for analytics.</p>
+        <div class="card-head"><h2>Employees</h2><div class="button-row"><button id="dedupeUsersBtn" class="secondary">Remove duplicates</button><button id="addUserBtn">+ Add User</button></div></div>
+        <p class="help-text">Delete unused employees individually. Remove duplicates merges employees with the same name and preserves their task assignments.</p>
         <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div>
       </div>
     </section>
@@ -166,7 +174,7 @@
             <tr><td>POC</td><td>POC</td></tr>
             <tr><td>Tasks</td><td>Task Description</td></tr>
             <tr><td>Content Responsible</td><td>Content Responsible</td></tr>
-            <tr><td>Responsible editor</td><td><b>Employee for Performance</b></td></tr>
+            <tr><td>Responsible editor</td><td><b>Performance Analysis</b></td></tr>
             <tr><td>Reference links</td><td>Reference</td></tr>
             <tr><td>Time Taken ( Videos)</td><td>Time Taken</td></tr>
             <tr><td>Priority</td><td>Priority</td></tr>
@@ -191,7 +199,7 @@
 
 <div id="taskModal" class="modal hidden">
   <form id="taskForm" class="modal-card">
-    <div class="modal-head"><h2 id="taskModalTitle">Add Task</h2><button type="button" class="x" data-close="taskModal">×</button></div>
+    <div class="modal-head"><h2 id="taskModalTitle">Add Task</h2><button type="button" class="x" data-close="taskModal" aria-label="Close">&times;</button></div>
     <input type="hidden" id="taskId">
     <div class="form-grid">
       <label>Date<input type="date" id="taskDate" required></label>
@@ -209,7 +217,7 @@
 
 <div id="userModal" class="modal hidden">
   <form id="userForm" class="modal-card">
-    <div class="modal-head"><h2 id="userModalTitle">Add User</h2><button type="button" class="x" data-close="userModal">×</button></div>
+    <div class="modal-head"><h2 id="userModalTitle">Add User</h2><button type="button" class="x" data-close="userModal" aria-label="Close">&times;</button></div>
     <input type="hidden" id="userId">
     <div class="form-grid">
       <label>Name<input id="userName" required></label><label>Email<input id="userEmail" type="email" required></label>
