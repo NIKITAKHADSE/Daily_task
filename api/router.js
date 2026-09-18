@@ -267,13 +267,18 @@ module.exports = async function handler(req,res) {
         const {users}=await maps();
         const userMap=new Map(users.map(item=>[Number(item.id),item]));
         const labels=['Graphic','Video','POC','Content Responsible'];
-        const groups=new Map(labels.map(label=>[label,{label,total:0,completed:0,eligible:0}]));
+        const groups=new Map(labels.map(label=>[label,{label,total:0,completed:0,eligible:0,employees:new Map()}]));
         tasks.forEach(task=>{
-          const designation=userMap.get(Number(task.employee_id))?.designation;
+          const employee=userMap.get(Number(task.employee_id));
+          const designation=employee?.designation;
           const row=groups.get(designation); if(!row) return;
           row.total++; if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
+          const employeeRow=row.employees.get(Number(task.employee_id))||{id:Number(task.employee_id),name:employee.name,total:0,completed:0,eligible:0};
+          employeeRow.total++; if(task.status==='Completed') employeeRow.completed++; if(task.status!=='Cancelled') employeeRow.eligible++;
+          row.employees.set(Number(task.employee_id),employeeRow);
         });
-        return send(res,{ok:true,items:[...groups.values()].filter(row=>row.total>0).map(row=>({...row,completion:completion(row.completed,row.eligible)}))});
+        const items=[...groups.values()].map(row=>({...row,completion:completion(row.completed,row.eligible),employees:[...row.employees.values()].map(employee=>({...employee,completion:completion(employee.completed,employee.eligible)})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name))})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.label.localeCompare(b.label));
+        return send(res,{ok:true,items});
       }
       if(action==='analytics.performance') {
         const allTasks=await tasksQuery({},user,'id,employee_id,task_date,status');

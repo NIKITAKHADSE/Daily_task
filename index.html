@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Daily Task Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -93,9 +96,9 @@
         <div class="card"><div class="card-head"><h2>Priority Performance</h2></div><div class="chart-box"><canvas id="priorityChart"></canvas></div></div>
       </div>
 
-      <div class="card">
-        <div class="card-head"><div><h2>Performance by Designation</h2><p class="help-text">Completion percentage and completed/total tasks for Graphic, Video, POC, and Content Responsible.</p></div></div>
-        <div class="chart-box"><canvas id="designationChart"></canvas></div>
+      <div class="card designation-report-card">
+        <div class="card-head"><div><h2>Performance by Designation</h2><p class="help-text">Each section shows the highest-performing designation first, with its employee analysis and task totals.</p></div></div>
+        <div id="designationReports" class="designation-reports"></div>
       </div>
 
       <div class="grid2">
