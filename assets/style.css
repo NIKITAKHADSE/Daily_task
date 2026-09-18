@@ -163,3 +163,9 @@ input,select,textarea,.login-card input,.modal-card input,.modal-card select,.mo
 .notice{background:#fff5dc;border-color:#efd18b;color:#74541c}.connection-box,.mapping-grid>div{background:#fbfdfb;border-color:#d8e4e3}.modal{background:#17263ab8}.modal-card{background:#fffdf9;border-color:#ffffffc7}.x{background:#edf3f2;color:#355463}.x:hover{background:#dfece8}#toast{background:#17334a;border-color:#ffffff24}
 button{background:#17334a}button:hover{background:#244f68}.secondary,.ghost{background:#e6f2ee;color:#0b6f63;border-color:#cfe3dd}.secondary:hover,.ghost:hover{background:#d8eee7}
 @media(max-width:600px){.page{padding-top:16px}.date-toolbar:after{right:-110px}.designation-section-head{align-items:flex-start;flex-direction:column}.designation-summary{gap:8px}}
+
+@media(min-width:1001px){
+  .app{display:block}
+  .sidebar{position:fixed;inset:0 auto 0 0;width:248px;height:100vh;z-index:30;overflow-y:auto}
+  main{margin-left:248px;min-height:100vh}
+}

@@ -277,7 +277,7 @@ module.exports = async function handler(req,res) {
           employeeRow.total++; if(task.status==='Completed') employeeRow.completed++; if(task.status!=='Cancelled') employeeRow.eligible++;
           row.employees.set(Number(task.employee_id),employeeRow);
         });
-        const items=[...groups.values()].map(row=>({...row,completion:completion(row.completed,row.eligible),employees:[...row.employees.values()].map(employee=>({...employee,completion:completion(employee.completed,employee.eligible)})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name))})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.label.localeCompare(b.label));
+        const items=[...groups.values()].filter(row=>row.total>0).map(row=>({...row,completion:completion(row.completed,row.eligible),employees:[...row.employees.values()].map(employee=>({...employee,completion:completion(employee.completed,employee.eligible)})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.name.localeCompare(b.name))})).sort((a,b)=>b.completion-a.completion||b.total-a.total||a.label.localeCompare(b.label));
         return send(res,{ok:true,items});
       }
       if(action==='analytics.clientResponsibilities') {

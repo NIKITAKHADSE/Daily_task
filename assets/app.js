@@ -101,6 +101,11 @@ $('#loginForm')?.addEventListener('submit', async e => {
   }
 });
 
+$('#loginPassword')?.addEventListener('change', () => {
+  const form=$('#loginForm');
+  if (form?.checkValidity()) form.requestSubmit();
+});
+
 $('#logoutBtn')?.addEventListener('click', async () => {
   try { await api('logout',{method:'POST'}); } catch (_) {}
   location.reload();
@@ -211,7 +216,7 @@ async function loadDashboard() {
     chart('employeeTotalChart','bar',e.employees.map(x=>`${x.name} (${x.total})`),e.employees.map(x=>x.total),'Total Tasks',{
       horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
     });
-    chart('statusChart','doughnut',st.items.map(x=>x.label),st.items.map(x=>x.value),'Tasks');
+    chart('statusChart','doughnut',st.items.map(x=>`${x.label} (${x.value})`),st.items.map(x=>x.value),'Tasks');
     chart('dailyChart','line',day.daily.map(x=>x.date),day.daily.map(x=>x.completion),'Completion %');
     chart('todayChart','bar',today.employees.map(x=>x.name),today.employees.map(x=>x.completion),'Today %');
     chart('categoryChart','bar',cat.items.map(x=>x.label),cat.items.map(x=>x.completion),'Completion %');
