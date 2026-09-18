@@ -290,11 +290,11 @@ module.exports = async function handler(req,res) {
           const client=String(task.client_name||'').trim()||'Unassigned Client';
           const row=clients.get(client)||{client,total:0,completed:0,eligible:0,pocs:new Map(),contentResponsible:new Map()};
           row.total++; if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
-          const poc=String(task.poc||'').trim(); if(poc) row.pocs.set(poc,(row.pocs.get(poc)||0)+1);
-          const content=String(task.content_responsible||'').trim(); if(content) row.contentResponsible.set(content,(row.contentResponsible.get(content)||0)+1);
+          const poc=String(task.poc||'').trim(); if(poc) { const item=row.pocs.get(poc)||{total:0,completed:0,eligible:0}; item.total++; if(task.status==='Completed') item.completed++; if(task.status!=='Cancelled') item.eligible++; row.pocs.set(poc,item); }
+          const content=String(task.content_responsible||'').trim(); if(content) { const item=row.contentResponsible.get(content)||{total:0,completed:0,eligible:0}; item.total++; if(task.status==='Completed') item.completed++; if(task.status!=='Cancelled') item.eligible++; row.contentResponsible.set(content,item); }
           clients.set(client,row);
         });
-        const rank=map=>[...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([name,total])=>({name,total}));
+        const rank=map=>[...map.entries()].sort((a,b)=>b[1].total-a[1].total||b[1].completed-a[1].completed||a[0].localeCompare(b[0])).map(([name,item])=>({name,total:item.total,completed:item.completed,completion:completion(item.completed,item.eligible)}));
         const items=[...clients.values()].map(row=>({client:row.client,total:row.total,completed:row.completed,completion:completion(row.completed,row.eligible),topPoc:rank(row.pocs)[0]||null,topContentResponsible:rank(row.contentResponsible)[0]||null,pocs:rank(row.pocs),contentResponsible:rank(row.contentResponsible)})).sort((a,b)=>b.total-a.total||b.completion-a.completion||a.client.localeCompare(b.client));
         return send(res,{ok:true,range:[from,to],items});
       }

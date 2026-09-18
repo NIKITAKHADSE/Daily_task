@@ -200,17 +200,14 @@ async function loadDashboard() {
       api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p}), api('analytics.performance'), api('analytics.designations',{params:p}), api('analytics.clientResponsibilities',{params:p})
     ]);
     const k = d.data;
+    const todayTaskCount = today.employees.reduce((total, employee) => total + Number(employee.total || 0), 0);
     $('#kpis').innerHTML = [
-      ['Total Tasks',k.total],['Completed',k.completed],['Pending',k.pending],['In Progress',k.in_progress],
+      ['Total Tasks',k.total],["Today's Tasks",todayTaskCount],['Completed',k.completed],['Pending',k.pending],['In Progress',k.in_progress],
       ['Blocked',k.blocked],['Overdue',k.overdue],['Completion %',k.completion+'%'],['Productivity %',k.productivity+'%']
     ].map(x => `<div class="kpi"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
 
     const employeeChartHeight=Math.max(310,e.employees.length*38);
-    $('#employeeCompletionChartBox').style.height=`${employeeChartHeight}px`;
     $('#employeeTotalChartBox').style.height=`${employeeChartHeight}px`;
-    chart('employeeCompletionChart','bar',e.employees.map(x=>`${x.name} (${x.completed}/${x.total})`),e.employees.map(x=>x.completion),'Completion %',{
-      horizontal:true,percentage:true,backgroundColor:'#36a984cc',borderColor:'#167d62'
-    });
     chart('employeeTotalChart','bar',e.employees.map(x=>`${x.name} (${x.total})`),e.employees.map(x=>x.total),'Total Tasks',{
       horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
     });
@@ -222,7 +219,7 @@ async function loadDashboard() {
     chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %');
     $('#designationReports').innerHTML = designations.items.map((designation,index) => `<section class="designation-section"><div class="designation-section-head"><div><span class="eyebrow">${index===0?'Highest performance':''}</span><h3>${esc(designation.label)}</h3></div><div class="designation-summary"><b>${designation.completion}%</b><span>${designation.completed}/${designation.total} completed</span><span>${designation.total} total tasks</span></div></div><div class="designation-chart-box"><canvas id="designationChart${index}"></canvas></div></section>`).join('');
     designations.items.forEach((designation,index) => chart(`designationChart${index}`,'bar',designation.employees.map(employee=>`${employee.name} (${employee.completed}/${employee.total})`),designation.employees.map(employee=>employee.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:index===0?'#f4a524cc':'#36a984cc',borderColor:index===0?'#c77d08':'#167d62'}));
-    $('#clientResponsibilityRows').innerHTML = clientResponsibilities.items.length ? clientResponsibilities.items.map(item => `<tr><td><strong>${esc(item.client)}</strong></td><td>${item.total}</td><td>${item.completed}/${item.total} (${item.completion}%)</td><td>${item.topPoc ? `<strong>${esc(item.topPoc.name)}</strong><div class="cell-small">${item.topPoc.total} task${item.topPoc.total===1?'':'s'}</div>` : '-'}</td><td>${item.topContentResponsible ? `<strong>${esc(item.topContentResponsible.name)}</strong><div class="cell-small">${item.topContentResponsible.total} task${item.topContentResponsible.total===1?'':'s'}</div>` : '-'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No Graphic or Video editor tasks found.</td></tr>';
+    $('#clientResponsibilityRows').innerHTML = clientResponsibilities.items.length ? clientResponsibilities.items.map(item => `<tr><td><strong>${esc(item.client)}</strong></td><td>${item.total}</td><td>${item.completed}/${item.total} (${item.completion}%)</td><td>${item.topPoc ? `<strong>${esc(item.topPoc.name)}</strong><div class="cell-small">${item.topPoc.completed}/${item.topPoc.total} completed (${item.topPoc.completion}%)</div>` : '-'}</td><td>${item.topContentResponsible ? `<strong>${esc(item.topContentResponsible.name)}</strong><div class="cell-small">${item.topContentResponsible.completed}/${item.topContentResponsible.total} completed (${item.topContentResponsible.completion}%)</div>` : '-'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No Graphic or Video editor tasks found.</td></tr>';
     $('#bestPerformance').innerHTML = [performance.week,performance.month].map((item,index) => item ? `<div class="best-performance-item"><span>${index ? 'Highest Task Volume This Month' : 'Highest Task Volume This Week'}</span><strong>${esc(item.employee_name)}</strong><b>${item.total} tasks</b><small>${esc(item.period)} · ${item.completed} completed (${item.completion}%)</small></div>` : `<div class="best-performance-item"><span>${index ? 'Highest Task Volume This Month' : 'Highest Task Volume This Week'}</span><strong>No task data</strong><small>No assigned tasks available.</small></div>`).join('');
 
     $('#overdueRows').innerHTML = over.tasks.length ? over.tasks.map(t => `<tr><td>${esc(t.employee_name)}</td><td>${esc(t.task_description)}</td><td>${fmt(t.due_date)}</td><td><span class="badge">${esc(t.priority)}</span></td><td>${esc(t.status)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No overdue tasks.</td></tr>';

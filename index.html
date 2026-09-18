@@ -71,25 +71,14 @@
 
       <div class="card"><div class="card-head"><h2>Task Status</h2></div><div class="chart-box"><canvas id="statusChart"></canvas></div></div>
 
-      <div class="grid2 employee-graphs">
-        <div class="card">
-          <div class="card-head"><div><h2>Employee Task Completion</h2><p class="help-text">Completed and remaining assigned tasks for each employee.</p></div></div>
-          <div class="employee-chart-scroll"><div id="employeeCompletionChartBox" class="chart-box employee-chart-box"><canvas id="employeeCompletionChart"></canvas></div></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><div><h2>Total Tasks by Employee</h2><p class="help-text">Total assigned tasks for each employee in the selected period.</p></div></div>
-          <div class="employee-chart-scroll"><div id="employeeTotalChartBox" class="chart-box employee-chart-box"><canvas id="employeeTotalChart"></canvas></div></div>
-        </div>
+      <div class="card employee-graphs">
+        <div class="card-head"><div><h2>Total Tasks by Employee</h2><p class="help-text">Total assigned tasks for each employee in the selected period.</p></div></div>
+        <div class="employee-chart-scroll"><div id="employeeTotalChartBox" class="chart-box employee-chart-box"><canvas id="employeeTotalChart"></canvas></div></div>
       </div>
 
       <div class="card best-performance-card">
         <div class="card-head"><div><h2>Best Performance</h2><p class="help-text">Top completion performance across all available task dates.</p></div></div>
         <div id="bestPerformance" class="best-performance-grid"></div>
-      </div>
-
-      <div class="grid2">
-        <div class="card"><div class="card-head"><h2>Daily Performance Trend</h2></div><div class="chart-box"><canvas id="dailyChart"></canvas></div></div>
-        <div class="card"><div class="card-head"><h2>Today's Employee Performance</h2></div><div class="chart-box"><canvas id="todayChart"></canvas></div></div>
       </div>
 
       <div class="grid2">
@@ -103,8 +92,8 @@
       </div>
 
       <div class="card client-responsibility-card">
-        <div class="card-head"><div><h2>Client Responsibility Analysis</h2><p class="help-text">Graphic and Video editor tasks grouped by client, showing which POC and Content Responsible person handled the most work.</p></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Client</th><th>Editor Tasks</th><th>Completed</th><th>Top POC</th><th>Top Content Responsible</th></tr></thead><tbody id="clientResponsibilityRows"></tbody></table></div>
+        <div class="card-head"><div><h2>Client Responsibility Analysis</h2><p class="help-text">Graphic and Video editor tasks grouped by client, showing POC and Content Responsible completion.</p></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Client</th><th>Editor Tasks</th><th>Completed</th><th>Top POC Completion</th><th>Top Content Responsible Completion</th></tr></thead><tbody id="clientResponsibilityRows"></tbody></table></div>
       </div>
 
       <div class="grid2">
