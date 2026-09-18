@@ -315,7 +315,7 @@ module.exports = async function handler(req,res) {
         const best=(map,format)=>[...map.values()].flatMap(row=>[...row.employeeTotals.values()].map(employee=>{
           const userInfo=userMap.get(employee.employeeId);
           return {period:format(row.period),total:employee.total,completed:employee.completed,completion:completion(employee.completed,employee.total),employee_name:userInfo?.name||'Unassigned'};
-        })).sort((a,b)=>b.completion-a.completion||b.completed-a.completed||b.total-a.total||b.period.localeCompare(a.period))[0]||null;
+        })).sort((a,b)=>b.total-a.total||b.completed-a.completed||b.completion-a.completion||b.period.localeCompare(a.period))[0]||null;
         return send(res,{ok:true,week:best(groups.week,key=>`Week of ${key}`),month:best(groups.month,key=>key)});
       }
       if(action==='analytics.daily') {
