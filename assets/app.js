@@ -206,9 +206,9 @@ async function loadDashboard() {
       api('analytics.todayEmployees'), api('analytics.overdue',{params:p}), api('analytics.clients',{params:p}), api('analytics.performance'), api('analytics.designations',{params:p}), api('analytics.clientResponsibilities',{params:p})
     ]);
     const k = d.data;
-    const todayTaskCount = today.employees.reduce((total, employee) => total + Number(employee.total || 0), 0);
+    const selectedRangeLabel = $('#range option:checked')?.textContent || 'Selected Period';
     $('#kpis').innerHTML = [
-      ['Total Tasks',k.total],["Today's Tasks",todayTaskCount],['Completed',k.completed],['Pending',k.pending],['In Progress',k.in_progress],
+      [`${selectedRangeLabel} Tasks`,k.total],['Completed',k.completed],['Pending',k.pending],['In Progress',k.in_progress],
       ['Blocked',k.blocked],['Overdue',k.overdue],['Completion %',k.completion+'%'],['Productivity %',k.productivity+'%']
     ].map(x => `<div class="kpi"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
 
