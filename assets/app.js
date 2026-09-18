@@ -42,7 +42,7 @@ function esc(v='') {
 }
 
 function fmt(v) { return v ? String(v).replace('T',' ') : '-'; }
-function statusText(value) { return String(value||'') === 'Not Started' ? 'Changes' : String(value||'-'); }
+function statusText(value) { return String(value||'-'); }
 function todayLocal() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
   const get = type => parts.find(part => part.type===type)?.value;
@@ -220,7 +220,7 @@ async function loadDashboard() {
     chart('statusChart','doughnut',st.items.map(x=>`${statusText(x.label)} (${x.value})`),st.items.map(x=>x.value),'Tasks');
     chart('dailyChart','line',day.daily.map(x=>x.date),day.daily.map(x=>x.completion),'Completion %');
     chart('todayChart','bar',today.employees.map(x=>x.name),today.employees.map(x=>x.completion),'Today %');
-    chart('categoryChart','bar',cat.items.map(x=>x.label),cat.items.map(x=>x.completion),'Completion %');
+    chart('categoryChart','bar',cat.items.map(x=>`${x.label} (${x.total})`),cat.items.map(x=>x.total),'Total Created Tasks',{backgroundColor:'#e97963cc',borderColor:'#c45d4b'});
     chart('priorityChart','bar',pri.items.map(x=>x.label),pri.items.map(x=>x.completion),'Completion %');
     chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %');
     $('#designationReports').innerHTML = designations.items.map((designation,index) => `<section class="designation-section"><div class="designation-section-head"><div><span class="eyebrow">${index===0?'Highest performance':''}</span><h3>${esc(designation.label)}</h3></div><div class="designation-summary"><b>${designation.completion}%</b><span>${designation.completed}/${designation.total} completed</span><span>${designation.total} total tasks</span></div></div><div class="designation-chart-box"><canvas id="designationChart${index}"></canvas></div></section>`).join('');
