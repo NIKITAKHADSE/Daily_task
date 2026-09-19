@@ -172,11 +172,17 @@ async function syncGoogleSheet(force=false) {
   const settings=await getSettings();
   const url=String(settings.sheet_url||'').trim();
   if(!url) return {ok:true,skipped:true,message:'No Google Sheet is connected yet.'};
-  if(!force && !Number(settings.enabled||0)) return {ok:true,skipped:true,message:'Auto sync is off.'};
+  // A connected sheet is always kept on the requested 30-second automatic sync.
+  // This also repairs older deployed settings where auto sync was disabled or daily.
+  if(Number(settings.enabled)!==1 || Number(settings.sync_interval)!==30) {
+    const {error}=await db().from('google_sheet_settings').update({enabled:1,sync_interval:30}).eq('id',1);
+    if(error) throw new Error(error.message);
+    settings.enabled=1;
+    settings.sync_interval=30;
+  }
   if(!force && settings.last_sync_at) {
     const last=new Date(String(settings.last_sync_at).replace(' ','T')+'+05:30').getTime();
-    const interval=Math.max(30,Math.min(86400,Number(settings.sync_interval||30)));
-    if(Number.isFinite(last) && (Date.now()-last)<interval*1000) return {ok:true,skipped:true,message:'Already up to date.',last_sync_at:settings.last_sync_at};
+    if(Number.isFinite(last) && (Date.now()-last)<30000) return {ok:true,skipped:true,message:'Already up to date.',last_sync_at:settings.last_sync_at};
   }
   try {
     const info=parseGoogleSheetUrl(url);

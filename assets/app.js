@@ -540,11 +540,11 @@ async function loadGoogleSheetSettings() {
     const s=j.settings||{};
     $('#sheetUrl').value=s.sheet_url||'';
     $('#sheetYear').value=s.sync_year||new Date().getFullYear();
-    $('#sheetInterval').value=String(s.sync_interval||30);
-    $('#sheetEnabled').checked=Number(s.enabled)===1;
+    $('#sheetInterval').value='30';
+    $('#sheetEnabled').checked=true;
     const status={
       connected:!!s.sheet_url,enabled:Number(s.enabled)||0,last_sync_at:s.last_sync_at,last_sync_status:s.last_sync_status,
-      last_sync_message:s.last_sync_message,last_sync_count:Number(s.last_sync_count)||0,sync_interval:Number(s.sync_interval)||86400
+      last_sync_message:s.last_sync_message,last_sync_count:Number(s.last_sync_count)||0,sync_interval:Number(s.sync_interval)||30
     };
     renderSheetStatus(status,'#sheetConnectionStatus');
     renderSheetStatus(status,'#sheetMiniStatus');
