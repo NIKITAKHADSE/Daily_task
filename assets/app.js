@@ -213,9 +213,10 @@ async function loadDashboard() {
       ['Blocked',k.blocked,'Blocked'],['Overdue',k.overdue,''],['Completion %',k.completion+'%',''],['Productivity %',k.productivity+'%','']
     ].map(x => `<div class="kpi${x[2]?' kpi-link':''}"${x[2]?` role="button" tabindex="0" data-task-status="${esc(x[2])}" title="Show the ${x[1]} ${x[2].toLowerCase()} tasks in this report period"`:''}><span>${x[0]}</span><strong>${x[1]}</strong>${x[2]?'<small>Click to view tasks</small>':''}</div>`).join('');
 
-    const employeeChartHeight=Math.max(310,e.employees.length*38);
+    const employeesByTaskCount=[...e.employees].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
+    const employeeChartHeight=Math.max(310,employeesByTaskCount.length*38);
     $('#employeeTotalChartBox').style.height=`${employeeChartHeight}px`;
-    chart('employeeTotalChart','bar',e.employees.map(x=>`${x.name} (${x.total})`),e.employees.map(x=>x.total),'Total Tasks',{
+    chart('employeeTotalChart','bar',employeesByTaskCount.map(x=>`${x.name} (${x.total})`),employeesByTaskCount.map(x=>x.total),'Total Tasks',{
       horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
     });
     chart('statusChart','doughnut',st.items.map(x=>`${statusText(x.label)} (${x.value})`),st.items.map(x=>x.value),'Tasks');
