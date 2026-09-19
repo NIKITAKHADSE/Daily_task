@@ -84,11 +84,11 @@ The existing Google Sheet connection is preserved. The application still:
 - replaces the previous Google Sheet snapshot on successful sync
 - keeps Google Sheet tasks read-only in the app
 
-The migrated setting currently preserves the original auto-sync enabled/disabled state exactly as it was in SQLite.
+Connected Google Sheets are configured with automatic sync enabled at a 30-second interval.
 
 ## Automatic Google Sheet sync
 
-When automatic sync is enabled in the Google Sheet settings, the browser checks at the selected interval while the app is open. A Vercel Cron also calls `/api/cron-sync` once daily at 09:00 India time, so syncing continues when nobody has the app open.
+Automatic sync defaults to every 30 seconds. The browser checks at that interval while the app is open, so nobody needs to press Sync Now. A Vercel Cron also calls `/api/cron-sync` once daily at 09:00 India time as a fallback when nobody has the app open.
 
 The cron endpoint requires `CRON_SECRET`. Add it to the Vercel Production environment and redeploy; Vercel automatically sends it as a Bearer token to cron requests. Use a different random value from `SESSION_SECRET`.
 

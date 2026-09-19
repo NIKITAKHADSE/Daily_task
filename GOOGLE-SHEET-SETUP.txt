@@ -31,7 +31,7 @@ Set the Sheet Year.
 Example: if your rows say "19 August" and the work is from 2026, enter 2026.
 
 STEP 8
-Choose "Once daily" under Auto Sync and tick "Turn on automatic sync".
+Choose "Every 30 seconds" under Auto Sync and keep "Turn on automatic sync" ticked.
 
 STEP 9
 Click "Test Connection".

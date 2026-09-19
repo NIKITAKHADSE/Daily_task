@@ -175,7 +175,7 @@ async function syncGoogleSheet(force=false) {
   if(!force && !Number(settings.enabled||0)) return {ok:true,skipped:true,message:'Auto sync is off.'};
   if(!force && settings.last_sync_at) {
     const last=new Date(String(settings.last_sync_at).replace(' ','T')+'+05:30').getTime();
-    const interval=Math.max(30,Math.min(86400,Number(settings.sync_interval||86400)));
+    const interval=Math.max(30,Math.min(86400,Number(settings.sync_interval||30)));
     if(Number.isFinite(last) && (Date.now()-last)<interval*1000) return {ok:true,skipped:true,message:'Already up to date.',last_sync_at:settings.last_sync_at};
   }
   try {

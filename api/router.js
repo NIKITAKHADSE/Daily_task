@@ -101,8 +101,8 @@ module.exports = async function handler(req,res) {
       const input=await body(req);
       const url=cleanString(input.sheet_url,2000);
       const info=parseGoogleSheetUrl(url);
-      let interval=Number(input.sync_interval||86400);
-      if(![30,60,120,300,600,86400].includes(interval)) interval=86400;
+      let interval=Number(input.sync_interval||30);
+      if(![30,60,120,300,600,86400].includes(interval)) interval=30;
       let year=Number(input.sync_year||new Date().getFullYear());
       if(year<2020||year>2100) year=new Date().getFullYear();
       const enabled=input.enabled?1:0;
@@ -119,7 +119,7 @@ module.exports = async function handler(req,res) {
     }
     if(action==='google_sheet.status') {
       const s=await getSettings();
-      const status={enabled:Number(s.enabled||0),connected:!!s.sheet_url,last_sync_at:s.last_sync_at||null,last_sync_status:s.last_sync_status||null,last_sync_message:s.last_sync_message||null,last_sync_count:Number(s.last_sync_count||0),sync_interval:Number(s.sync_interval||86400)};
+      const status={enabled:Number(s.enabled||0),connected:!!s.sheet_url,last_sync_at:s.last_sync_at||null,last_sync_status:s.last_sync_status||null,last_sync_message:s.last_sync_message||null,last_sync_count:Number(s.last_sync_count||0),sync_interval:Number(s.sync_interval||30)};
       if(user.role==='admin') status.sheet_url=s.sheet_url||'';
       return send(res,{ok:true,status});
     }

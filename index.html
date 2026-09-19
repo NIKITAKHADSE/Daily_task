@@ -88,7 +88,7 @@
       </div>
 
       <div class="card designation-report-card">
-        <div class="card-head"><div><h2>Performance</h2><p class="help-text">Each section shows the highest-performing designation first, with its employee analysis and task totals.</p></div></div>
+        <div class="card-head"><div><h2>Video and Graphic Performance</h2><p class="help-text">Video and Graphic editor performance, ranked by completion and total assigned tasks.</p></div></div>
         <div id="designationReports" class="designation-reports"></div>
       </div>
 
@@ -175,8 +175,8 @@
           <div class="sheet-form">
             <label class="wide">Google Sheet Link<input id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=0#gid=0"></label>
             <label>Sheet Year<input id="sheetYear" type="number" min="2020" max="2100"></label>
-            <label>Auto Sync<select id="sheetInterval"><option value="30">Every 30 seconds</option><option value="60">Every 1 minute</option><option value="120">Every 2 minutes</option><option value="300">Every 5 minutes</option><option value="600">Every 10 minutes</option><option value="86400" selected>Once daily</option></select></label>
-            <label class="toggle-row"><input id="sheetEnabled" type="checkbox"> <span>Turn on automatic sync</span></label>
+            <label>Auto Sync<select id="sheetInterval"><option value="30" selected>Every 30 seconds</option><option value="60">Every 1 minute</option><option value="120">Every 2 minutes</option><option value="300">Every 5 minutes</option><option value="600">Every 10 minutes</option><option value="86400">Once daily</option></select></label>
+            <label class="toggle-row"><input id="sheetEnabled" type="checkbox" checked> <span>Turn on automatic sync</span></label>
           </div>
           <div class="button-row sheet-actions">
             <button id="testSheetBtn" type="button" class="secondary">Test Connection</button>

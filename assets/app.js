@@ -471,7 +471,7 @@ function sheetSettingsBody() {
   return {
     sheet_url: $('#sheetUrl').value.trim(),
     sync_year: Number($('#sheetYear').value || new Date().getFullYear()),
-    sync_interval: Number($('#sheetInterval').value || 86400),
+    sync_interval: Number($('#sheetInterval').value || 30),
     enabled: $('#sheetEnabled').checked,
   };
 }
@@ -513,7 +513,7 @@ async function loadGoogleSheetSettings() {
     const s=j.settings||{};
     $('#sheetUrl').value=s.sheet_url||'';
     $('#sheetYear').value=s.sync_year||new Date().getFullYear();
-    $('#sheetInterval').value=String(s.sync_interval||86400);
+    $('#sheetInterval').value=String(s.sync_interval||30);
     $('#sheetEnabled').checked=Number(s.enabled)===1;
     const status={
       connected:!!s.sheet_url,enabled:Number(s.enabled)||0,last_sync_at:s.last_sync_at,last_sync_status:s.last_sync_status,
@@ -582,7 +582,8 @@ $('#syncNowTaskBtn')?.addEventListener('click',async()=>{
 });
 
 async function maybeAutoSync(refreshUI=false) {
-  if(!S.user) return;
+  if(!S.user || maybeAutoSync.running) return;
+  maybeAutoSync.running=true;
   try {
     const j=await api('google_sheet.sync',{method:'POST',body:{force:false}});
     if(!j.skipped && refreshUI) {
@@ -594,6 +595,8 @@ async function maybeAutoSync(refreshUI=false) {
   } catch(e) {
     await loadSheetStatus();
     if(refreshUI) console.warn('Google Sheet auto sync:',e.message);
+  } finally {
+    maybeAutoSync.running=false;
   }
 }
 
