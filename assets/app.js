@@ -207,10 +207,11 @@ async function loadDashboard() {
     ]);
     const k = d.data;
     const selectedRangeLabel = $('#range option:checked')?.textContent || 'Selected Period';
+    S.dashboardRange=d.range;
     $('#kpis').innerHTML = [
-      [`${selectedRangeLabel} Tasks`,k.total],['Completed',k.completed],['Pending',k.pending],['In Progress',k.in_progress],
-      ['Blocked',k.blocked],['Overdue',k.overdue],['Completion %',k.completion+'%'],['Productivity %',k.productivity+'%']
-    ].map(x => `<div class="kpi"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
+      [`${selectedRangeLabel} Tasks`,k.total,''],['Completed',k.completed,'Completed'],['Pending',k.pending,'Pending'],['In Progress',k.in_progress,'In Progress'],
+      ['Blocked',k.blocked,'Blocked'],['Overdue',k.overdue,''],['Completion %',k.completion+'%',''],['Productivity %',k.productivity+'%','']
+    ].map(x => `<div class="kpi${x[2]?' kpi-link':''}"${x[2]?` role="button" tabindex="0" data-task-status="${esc(x[2])}" title="Show the ${x[1]} ${x[2].toLowerCase()} tasks in this report period"`:''}><span>${x[0]}</span><strong>${x[1]}</strong>${x[2]?'<small>Click to view tasks</small>':''}</div>`).join('');
 
     const employeeChartHeight=Math.max(310,e.employees.length*38);
     $('#employeeTotalChartBox').style.height=`${employeeChartHeight}px`;
@@ -245,6 +246,32 @@ async function loadDashboard() {
     await loadSheetStatus();
   } catch (err) { toast(err.message); }
 }
+
+async function showDashboardStatusTasks(status) {
+  const [from,to]=S.dashboardRange||[];
+  $('#taskSearch').value='';
+  $('#taskStatusFilter').value=status;
+  $('#taskPriorityFilter').value='';
+  $('#taskSourceFilter').value='';
+  if(from && to) {
+    $('#taskDateMode').value='range';
+    $('#taskFromFilter').value=from;
+    $('#taskToFilter').value=to;
+    $$('.task-month,.task-date').forEach(e=>e.classList.add('hidden'));
+    $$('.task-range').forEach(e=>e.classList.remove('hidden'));
+  }
+  document.querySelector('.nav[data-page="tasks"]')?.click();
+}
+
+$('#kpis')?.addEventListener('click',e=>{
+  const card=e.target.closest('[data-task-status]');
+  if(card) showDashboardStatusTasks(card.dataset.taskStatus);
+});
+$('#kpis')?.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ') && e.target.matches('[data-task-status]')) {
+    e.preventDefault(); showDashboardStatusTasks(e.target.dataset.taskStatus);
+  }
+});
 
 async function loadEmployeeDetail() {
   const id = $('#employeeSelect').value;
