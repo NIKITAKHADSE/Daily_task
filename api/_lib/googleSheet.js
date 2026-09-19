@@ -39,6 +39,29 @@ async function httpGetText(url) {
   } finally { clearTimeout(timer); }
 }
 
+const MONTH_TAB_RE=/\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.*\b(20\d{2})\b/i;
+function parsePublicSheetTabs(html) {
+  const tabs=[];
+  const seen=new Set();
+  const pattern=/\[21350203,"\[(?:\d+),0,\\"(-?\d+)\\",\[\{\\"1\\":\[\[0,0,\\"((?:\\.|[^"\\])*?)\\"\]/g;
+  let match;
+  while((match=pattern.exec(String(html||'')))) {
+    const gid=match[1];
+    let title=match[2];
+    try { title=JSON.parse(`"${title}"`); } catch(_) {}
+    if(!seen.has(gid)) { seen.add(gid); tabs.push({gid,title}); }
+  }
+  return tabs;
+}
+async function discoverMonthlyTabs(sheetId, fallbackGid) {
+  try {
+    const html=await httpGetText(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`);
+    const monthly=parsePublicSheetTabs(html).filter(tab=>MONTH_TAB_RE.test(tab.title));
+    if(monthly.length) return monthly;
+  } catch(_) {}
+  return [{gid:String(fallbackGid||'0'),title:''}];
+}
+
 function csvRows(csv) {
   return parse(csv, { relax_column_count:true, skip_empty_lines:false, bom:true }).map(row => row.map(v => String(v ?? '').trim()));
 }
@@ -186,32 +209,49 @@ async function syncGoogleSheet(force=false) {
   }
   try {
     const info=parseGoogleSheetUrl(url);
-    const csv=await httpGetText(info.csv_url);
-    if(/<html|<!doctype/i.test(csv)) throw userError('Google returned a login/web page instead of Sheet data. Share the sheet as Anyone with the link - Viewer, then try again.');
-    const rows=csvRows(csv); if(!rows.length) throw userError('The Google Sheet returned no rows.');
-    const [headerRow,map]=findSheetHeader(rows);
-    const year=Number(settings.sync_year)||new Date().getFullYear();
+    const tabs=await discoverMonthlyTabs(info.sheet_id,info.gid);
+    const tabResults=await Promise.all(tabs.map(async tab=>{
+      const csvUrl=`https://docs.google.com/spreadsheets/d/${info.sheet_id}/gviz/tq?tqx=out:csv&gid=${tab.gid}`;
+      const csv=await httpGetText(csvUrl);
+      if(/<html|<!doctype/i.test(csv)) throw userError(`Google returned a login/web page for ${tab.title||'the connected tab'}. Share the sheet as Anyone with the link - Viewer, then try again.`);
+      const rows=csvRows(csv); if(!rows.length) return null;
+      let headerRow,map;
+      try { [headerRow,map]=findSheetHeader(rows); }
+      catch(error) {
+        if(String(error.message||'').startsWith('Could not find the header row')) return null;
+        throw error;
+      }
+      return {tab,rows,headerRow,map};
+    }));
+    const readableTabs=tabResults.filter(Boolean);
+    if(!readableTabs.length) throw userError('The Google Sheet returned no rows.');
+    const configuredYear=Number(settings.sync_year)||new Date().getFullYear();
     const parsed=[]; let lastDate=null;
-    for(let i=headerRow+1;i<rows.length;i++) {
-      const row=rows[i]; const task=sheetCell(row,map,['Tasks','Task','Task Description']); if(!task) continue;
-      const dateRaw=sheetCell(row,map,['Date','Date.']); let date=parseSheetDate(dateRaw,year);
-      if(date) lastDate=date; if(!date) date=lastDate; if(!date) continue;
-      const client=sheetCell(row,map,['Name','Client','Client Name']);
-      const type=sheetCell(row,map,['Type','Category']);
-      const poc=sheetCell(row,map,['POC']);
-      const contentResponsible=sheetCell(row,map,['Content Responsible']);
-      const editorRaw=sheetCell(row,map,['Responsible editor','Responsible Editor','Editor']);
-      const reference=sheetCell(row,map,['Reference links','Reference link','References']);
-      const timeTaken=sheetCell(row,map,['Time Taken ( Videos)','Time Taken (Videos)','Time Taken']);
-      const priorityRaw=sheetCell(row,map,['Priority']);
-      const statusRaw=sheetCell(row,map,['Remarks filled by editors','Editor Status','Status']);
-      const editorRemarks=sheetCell(row,map,['Editors Remarks','Editor Remarks']);
-      const accRemark=sheetCell(row,map,['Acc manager remark','Account manager remark','Account Manager Remark']);
-      const managerRemark=sheetCell(row,map,['Manager Remark','Manager Remarks']);
-      const d=new Date(`${date}T12:00:00Z`);
-      const day=sheetCell(row,map,['Day']) || new Intl.DateTimeFormat('en-US',{weekday:'long',timeZone:'UTC'}).format(d);
-      const employeeName=editorRaw || contentResponsible || 'Unassigned';
-      parsed.push({row_number:i+1,date,day,client,type,poc,task,content_responsible:contentResponsible,editor:employeeName,reference,time_taken:timeTaken,priority_raw:priorityRaw,priority:normalizeSheetPriority(priorityRaw),status_raw:statusRaw,status:normalizeSheetStatus(statusRaw),editor_remarks:editorRemarks,acc_remark:accRemark,manager_remark:managerRemark});
+    for(const {tab,rows,headerRow,map} of readableTabs) {
+      lastDate=null;
+      const titleYear=String(tab.title).match(/\b(20\d{2})\b/);
+      const year=titleYear?Number(titleYear[1]):configuredYear;
+      for(let i=headerRow+1;i<rows.length;i++) {
+        const row=rows[i]; const task=sheetCell(row,map,['Tasks','Task','Task Description']); if(!task) continue;
+        const dateRaw=sheetCell(row,map,['Date','Date.']); let date=parseSheetDate(dateRaw,year);
+        if(date) lastDate=date; if(!date) date=lastDate; if(!date) continue;
+        const client=sheetCell(row,map,['Name','Client','Client Name']);
+        const type=sheetCell(row,map,['Type','Category']);
+        const poc=sheetCell(row,map,['POC']);
+        const contentResponsible=sheetCell(row,map,['Content Responsible']);
+        const editorRaw=sheetCell(row,map,['Responsible editor','Responsible Editor','Editor']);
+        const reference=sheetCell(row,map,['Reference links','Reference link','References']);
+        const timeTaken=sheetCell(row,map,['Time Taken ( Videos)','Time Taken (Videos)','Time Taken']);
+        const priorityRaw=sheetCell(row,map,['Priority']);
+        const statusRaw=sheetCell(row,map,['Remarks filled by editors','Editor Status','Status']);
+        const editorRemarks=sheetCell(row,map,['Editors Remarks','Editor Remarks']);
+        const accRemark=sheetCell(row,map,['Acc manager remark','Account manager remark','Account Manager Remark']);
+        const managerRemark=sheetCell(row,map,['Manager Remark','Manager Remarks']);
+        const d=new Date(`${date}T12:00:00Z`);
+        const day=sheetCell(row,map,['Day']) || new Intl.DateTimeFormat('en-US',{weekday:'long',timeZone:'UTC'}).format(d);
+        const employeeName=editorRaw || contentResponsible || 'Unassigned';
+        parsed.push({sheet_key:`${info.sheet_id}:${tab.gid}`,row_number:i+1,date,day,client,type,poc,task,content_responsible:contentResponsible,editor:employeeName,reference,time_taken:timeTaken,priority_raw:priorityRaw,priority:normalizeSheetPriority(priorityRaw),status_raw:statusRaw,status:normalizeSheetStatus(statusRaw),editor_remarks:editorRemarks,acc_remark:accRemark,manager_remark:managerRemark});
+      }
     }
     if(!parsed.length) throw userError('No task rows could be read. Check the Date and Tasks columns in the connected sheet tab.');
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
@@ -223,13 +263,13 @@ async function syncGoogleSheet(force=false) {
       client_name:item.client, task_type:item.type, poc:item.poc, content_responsible:item.content_responsible,
       responsible_editor:item.editor, reference_links:item.reference, time_taken:item.time_taken, editor_remarks:item.editor_remarks,
       acc_manager_remark:item.acc_remark, manager_remark:item.manager_remark, sheet_day:item.day, raw_status:item.status_raw,
-      raw_priority:item.priority_raw, source:'google_sheet', source_sheet_key:info.sheet_key, source_row:item.row_number,
+      raw_priority:item.priority_raw, source:'google_sheet', source_sheet_key:item.sheet_key, source_row:item.row_number,
       synced_at:now, updated_at:now
     }));
     const {data,error}=await db().rpc('replace_google_sheet_tasks',{p_tasks:snapshot});
     if(error) throw new Error(error.message);
     const count=Number(data ?? snapshot.length);
-    const message=`${count} tasks synced from Google Sheet.`;
+    const message=`${count} tasks synced from ${readableTabs.length} Google Sheet tab${readableTabs.length===1?'':'s'}.`;
     await markSync('success',message,count);
     return {ok:true,message,count,sheet_key:info.sheet_key,last_sync_at:now};
   } catch(e) {
@@ -238,4 +278,4 @@ async function syncGoogleSheet(force=false) {
   }
 }
 
-module.exports = { parseGoogleSheetUrl, testGoogleSheet, syncGoogleSheet, getSettings };
+module.exports = { parseGoogleSheetUrl, parsePublicSheetTabs, testGoogleSheet, syncGoogleSheet, getSettings };
