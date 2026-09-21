@@ -147,6 +147,30 @@ function splitEditorNames(value) {
   }
   return unique;
 }
+function carriedTaskKey(item) {
+  const normalize=value=>String(value||'').trim().replace(/\s+/g,' ').toLowerCase();
+  return [item.employee_id,normalize(item.client_name),normalize(item.task_description)].join('|');
+}
+function resolveCarriedTaskStatuses(tasks) {
+  const groups=new Map();
+  tasks.forEach((task,index)=>{
+    const key=carriedTaskKey(task);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push({task,index});
+  });
+  for(const group of groups.values()) {
+    group.sort((a,b)=>String(b.task.task_date).localeCompare(String(a.task.task_date)) || Number(b.task.source_row||0)-Number(a.task.source_row||0) || b.index-a.index);
+    let completedLater=false;
+    for(const {task} of group) {
+      if(task.status==='Completed') completedLater=true;
+      else if(completedLater && ['Pending','In Progress','Not Started'].includes(task.status)) {
+        task.status='Completed';
+        task.raw_status='Completed (carried forward)';
+      }
+    }
+  }
+  return tasks;
+}
 
 async function getSettings() {
   const {data,error}=await db().from('google_sheet_settings').select('*').eq('id',1).maybeSingle();
@@ -273,7 +297,7 @@ async function syncGoogleSheet(force=false) {
     if(!parsed.length) throw userError('No task rows could be read. Check the Date and Tasks columns in the connected sheet tab.');
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
     const now=indiaDateTimeString();
-    const snapshot=parsed.map(item=>({
+    const snapshot=resolveCarriedTaskStatuses(parsed.map(item=>({
       employee_id:Number(userMap.get(employeeNameKey(item.editor)).id), task_date:item.date, task_description:item.task,
       category_id:item.type ? Number(catMap.get(item.type.toLowerCase())?.id || 0) || null : null,
       priority:item.priority, due_date:null, status:item.status, remarks:item.editor_remarks,
@@ -282,7 +306,7 @@ async function syncGoogleSheet(force=false) {
       acc_manager_remark:item.acc_remark, manager_remark:item.manager_remark, sheet_day:item.day, raw_status:item.status_raw,
       raw_priority:item.priority_raw, source:'google_sheet', source_sheet_key:item.sheet_key, source_row:item.row_number,
       synced_at:now, updated_at:now
-    }));
+    })));
     const {data,error}=await db().rpc('replace_google_sheet_tasks',{p_tasks:snapshot});
     if(error) throw new Error(error.message);
     const count=Number(data ?? snapshot.length);
