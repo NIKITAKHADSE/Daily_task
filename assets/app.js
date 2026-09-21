@@ -296,14 +296,32 @@ async function loadEmployeeDetail() {
 
 $('#employeeSelect')?.addEventListener('change', loadEmployeeDetail);
 $('#refreshBtn')?.addEventListener('click', async () => { await maybeAutoSync(true); await loadDashboard(); });
+function updateQuickDateTabs() {
+  const selected=$('#range')?.value;
+  $$('.date-quick-tab').forEach(button=>button.classList.toggle('active',button.dataset.reportRange===selected));
+}
+function updateDashboardDateControls() {
+  const value=$('#range').value;
+  $$('.custom-date').forEach(e=>e.classList.toggle('hidden',value!=='custom'));
+  $('#reportMonth').classList.toggle('hidden',value!=='selected_month');
+  $('#reportDate').classList.toggle('hidden',value!=='exact_date');
+  updateQuickDateTabs();
+}
 $('#range')?.addEventListener('change', () => {
   const value = $('#range').value;
-  const c = value === 'custom';
-  $$('.custom-date').forEach(e => e.classList.toggle('hidden',!c));
-  $('#reportMonth').classList.toggle('hidden', value !== 'selected_month');
-  $('#reportDate').classList.toggle('hidden', value !== 'exact_date');
+  updateDashboardDateControls();
   if (!['custom','selected_month','exact_date'].includes(value)) loadDashboard();
 });
+$$('.date-quick-tab').forEach(button=>button.addEventListener('click',()=>{
+  const range=button.dataset.reportRange;
+  $('#range').value=range;
+  updateDashboardDateControls();
+  if(range==='exact_date') {
+    const input=$('#reportDate');
+    input.focus();
+    if(typeof input.showPicker==='function') input.showPicker();
+  } else loadDashboard();
+}));
 $$('.custom-date').forEach(e => e.addEventListener('change', () => {
   if ($('#fromDate').value && $('#toDate').value) loadDashboard();
 }));

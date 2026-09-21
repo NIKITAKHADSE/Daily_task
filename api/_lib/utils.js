@@ -9,6 +9,12 @@ function ymdDate(value) {
   return m ? new Date(Date.UTC(+m[1], +m[2]-1, +m[3])) : null;
 }
 function addDays(d, n) { const x = new Date(d); x.setUTCDate(x.getUTCDate()+n); return x; }
+function previousWorkingDay(d) {
+  const previous = addDays(d, -1);
+  // Daily sheets are populated Monday-Saturday. On Monday, show Saturday's
+  // results instead of an empty Sunday report.
+  return previous.getUTCDay() === 0 ? addDays(previous, -1) : previous;
+}
 function firstMonth(d) { return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); }
 function lastMonth(d) { return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 0)); }
 
@@ -39,7 +45,7 @@ function dateRange(q = {}) {
     }
     case 'exact_date': from = to = ymdDate(q.date) || today; break;
     case 'today': from = to = today; break;
-    case 'yesterday': from = to = addDays(today, -1); break;
+    case 'yesterday': from = to = previousWorkingDay(today); break;
     case 'this_week': {
       const day = today.getUTCDay() || 7;
       from = addDays(today, 1-day); to = addDays(from, 6); break;

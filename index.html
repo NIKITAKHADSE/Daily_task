@@ -51,6 +51,11 @@
     <section id="dashboardPage" class="page active">
       <div class="toolbar date-toolbar">
         <div class="toolbar-title"><span class="eyebrow">Report period</span><strong>Scan tasks by month or date</strong></div>
+        <div class="date-quick-tabs" aria-label="Quick date selection">
+          <button type="button" class="date-quick-tab active" data-report-range="today">Today</button>
+          <button type="button" class="date-quick-tab" data-report-range="yesterday">Yesterday</button>
+          <button type="button" class="date-quick-tab" data-report-range="exact_date">Select Date</button>
+        </div>
         <select id="range">
           <option value="all_data">All Sheet Data</option>
           <option value="today" selected>Today</option><option value="yesterday">Yesterday</option>
