@@ -4,7 +4,7 @@ GOOGLE SHEET CONNECTION - SIMPLE GUIDE
 Your existing daily Google Sheet can stay exactly as it is.
 
 STEP 1
-Open the exact Google Sheet tab you want the dashboard to read.
+Open any monthly tab in the Google Sheet. The app automatically imports all compatible month/year tabs in that workbook.
 
 STEP 2
 Click Share -> General access -> Anyone with the link -> Viewer.

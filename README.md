@@ -76,12 +76,12 @@ It transparently rewrites that path to the new Vercel API Function, so the exist
 The existing Google Sheet connection is preserved. The application still:
 
 - accepts the normal Google Sheet browser URL
-- reads the selected tab using its `gid`
+- discovers and reads every compatible month/year tab (for example, July 2026 and August 2026)
 - requires **Anyone with the link → Viewer**
 - reads Google CSV output without Google OAuth/API credentials
 - uses the same column mapping
 - creates missing employees/categories automatically
-- replaces the previous Google Sheet snapshot on successful sync
+- replaces the previous Google Sheet snapshot with the combined monthly-tab snapshot on successful sync
 - keeps Google Sheet tasks read-only in the app
 
 Connected Google Sheets are configured with automatic sync enabled at a 30-second interval.

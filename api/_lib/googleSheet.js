@@ -95,7 +95,12 @@ function parseSheetDate(value, defaultYear) {
   v=v.replace(/[,.]/g,' ').replace(/\s+/g,' ').trim();
   let m;
   if((m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) return validDate(+m[1],+m[2],+m[3]);
-  if((m=v.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/))) return validDate(+m[3],+m[2],+m[1]);
+  if((m=v.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/))) {
+    // Google CSV output can use either the spreadsheet locale (DD/MM/YYYY)
+    // or the visualization API's US format (MM/DD/YYYY). Prefer day-first for
+    // ambiguous dates, but retry month-first when that is the only valid date.
+    return validDate(+m[3],+m[2],+m[1]) || validDate(+m[3],+m[1],+m[2]);
+  }
   if((m=v.match(/^(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?$/))) {
     const mon=MONTHS[m[2].toLowerCase()]; if(mon) return validDate(m[3]?+m[3]:defaultYear,mon,+m[1]);
   }
