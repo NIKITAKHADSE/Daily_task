@@ -138,6 +138,15 @@ function emailSlug(name) {
 function employeeNameKey(name) {
   return String(name||'').trim().replace(/\s+/g,' ').toLowerCase();
 }
+function splitEditorNames(value) {
+  const names=String(value||'').split(/\s*(?:,|;|&|\+|\/|\band\b)\s*/i).map(name=>name.trim()).filter(Boolean);
+  const unique=[]; const seen=new Set();
+  for(const name of names) {
+    const key=employeeNameKey(name);
+    if(key&&!seen.has(key)) { seen.add(key); unique.push(name); }
+  }
+  return unique;
+}
 
 async function getSettings() {
   const {data,error}=await db().from('google_sheet_settings').select('*').eq('id',1).maybeSingle();
@@ -254,8 +263,11 @@ async function syncGoogleSheet(force=false) {
         const managerRemark=sheetCell(row,map,['Manager Remark','Manager Remarks']);
         const d=new Date(`${date}T12:00:00Z`);
         const day=sheetCell(row,map,['Day']) || new Intl.DateTimeFormat('en-US',{weekday:'long',timeZone:'UTC'}).format(d);
-        const employeeName=editorRaw || contentResponsible || 'Unassigned';
-        parsed.push({sheet_key:`${info.sheet_id}:${tab.gid}`,row_number:i+1,date,day,client,type,poc,task,content_responsible:contentResponsible,editor:employeeName,reference,time_taken:timeTaken,priority_raw:priorityRaw,priority:normalizeSheetPriority(priorityRaw),status_raw:statusRaw,status:normalizeSheetStatus(statusRaw),editor_remarks:editorRemarks,acc_remark:accRemark,manager_remark:managerRemark});
+        const employeeNames=splitEditorNames(editorRaw || contentResponsible);
+        if(!employeeNames.length) employeeNames.push('Unassigned');
+        for(const editor of employeeNames) {
+          parsed.push({sheet_key:`${info.sheet_id}:${tab.gid}`,row_number:i+1,date,day,client,type,poc,task,content_responsible:contentResponsible,editor,reference,time_taken:timeTaken,priority_raw:priorityRaw,priority:normalizeSheetPriority(priorityRaw),status_raw:statusRaw,status:normalizeSheetStatus(statusRaw),editor_remarks:editorRemarks,acc_remark:accRemark,manager_remark:managerRemark});
+        }
       }
     }
     if(!parsed.length) throw userError('No task rows could be read. Check the Date and Tasks columns in the connected sheet tab.');
