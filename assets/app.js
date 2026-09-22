@@ -133,10 +133,35 @@ $$('.nav').forEach(b => b.addEventListener('click', async () => {
   if (p === 'sharingAnalysis') await loadSharingAnalysis();
   if (p === 'employees') await loadUsers();
   if (p === 'googleSheet') await loadGoogleSheetSettings();
-  if (innerWidth < 1000) $('.sidebar').classList.remove('open');
+  if (innerWidth < 1000) closeMobileNav();
 }));
 
-$('#menuBtn')?.addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+function setMobileNav(open) {
+  const sidebar = $('.sidebar');
+  const menu = $('#menuBtn');
+  if (!sidebar || !menu) return;
+  const mobile = innerWidth <= 1000;
+  const expanded = mobile && open;
+  sidebar.classList.toggle('open', expanded);
+  sidebar.toggleAttribute('inert', mobile && !expanded);
+  sidebar.setAttribute('aria-hidden', String(mobile && !expanded));
+  menu.setAttribute('aria-expanded', String(expanded));
+  menu.setAttribute('aria-label', expanded ? 'Close navigation' : 'Open navigation');
+  document.body.classList.toggle('nav-open', expanded);
+}
+
+function closeMobileNav() { setMobileNav(false); }
+
+$('#menuBtn')?.addEventListener('click', () => setMobileNav(!$('.sidebar')?.classList.contains('open')));
+$('#navBackdrop')?.addEventListener('click', closeMobileNav);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('.sidebar')?.classList.contains('open')) {
+    closeMobileNav();
+    $('#menuBtn')?.focus();
+  }
+});
+window.matchMedia('(max-width: 1000px)').addEventListener('change', closeMobileNav);
+setMobileNav(false);
 
 async function loadSharingAnalysis() {
   const range=$('#sharingRange')?.value||'all_data';
