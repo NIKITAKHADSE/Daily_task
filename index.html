@@ -29,6 +29,7 @@
 <div id="app" class="app hidden">
   <aside id="primarySidebar" class="sidebar">
     <div class="logo"><span>PA</span><div><b>Performance Analysis</b><small>Performance workspace</small></div></div>
+    <button id="closeMenuBtn" class="close-menu" type="button" aria-label="Close navigation">&times;</button>
     <nav>
       <button data-page="dashboard" class="nav active">Dashboard</button>
       <button data-page="tasks" class="nav">Tasks</button>
@@ -77,10 +78,10 @@
 
       <div class="grid2 dashboard-lead-charts">
         <div class="card employee-graphs">
-          <div class="card-head"><div><h2>Total Tasks by Employee</h2><p class="help-text">Total assigned tasks for each employee in the selected period.</p></div></div>
+          <div class="card-head"><div><h2>Total Tasks by Employee</h2><p class="help-text">Total assigned tasks for each employee in the selected period. Click a bar to view its tasks.</p></div></div>
           <div class="employee-chart-scroll"><div id="employeeTotalChartBox" class="chart-box employee-chart-box"><canvas id="employeeTotalChart"></canvas></div></div>
         </div>
-        <div class="card task-status-card"><div class="card-head"><div><h2>Task Status from Google Sheet</h2><p class="help-text">Manual tasks are excluded from this analysis.</p></div></div><div class="chart-box"><canvas id="statusChart"></canvas></div></div>
+        <div class="card task-status-card"><div class="card-head"><div><h2>Task Status from Google Sheet</h2><p class="help-text">Manual tasks are excluded. Click a segment to view its tasks.</p></div></div><div class="chart-box"><canvas id="statusChart"></canvas></div></div>
       </div>
 
       <div class="card best-performance-card">
@@ -89,12 +90,12 @@
       </div>
 
       <div class="grid2">
-        <div class="card"><div class="card-head"><div><h2>All Created Tasks by Type</h2><p class="help-text">Total created tasks from every sheet type, including Changes.</p></div></div><div class="chart-box"><canvas id="categoryChart"></canvas></div></div>
-        <div class="card"><div class="card-head"><h2>Priority Performance</h2></div><div class="chart-box"><canvas id="priorityChart"></canvas></div></div>
+        <div class="card"><div class="card-head"><div><h2>All Created Tasks by Type</h2><p class="help-text">Total created tasks from every sheet type, including Changes. Click a bar to view its tasks.</p></div></div><div class="chart-box"><canvas id="categoryChart"></canvas></div></div>
+        <div class="card"><div class="card-head"><div><h2>Priority Performance</h2><p class="help-text">Click a bar to view its tasks.</p></div></div><div class="chart-box"><canvas id="priorityChart"></canvas></div></div>
       </div>
 
       <div class="card designation-report-card">
-        <div class="card-head"><div><h2>Video and Graphic Performance</h2><p class="help-text">Video and Graphic editor performance, ranked by completion and total assigned tasks.</p></div></div>
+        <div class="card-head"><div><h2>Video and Graphic Performance</h2><p class="help-text">Video and Graphic editor performance, ranked by completion and total assigned tasks. Click an employee bar to view their tasks.</p></div></div>
         <div id="designationReports" class="designation-reports"></div>
       </div>
 
@@ -128,7 +129,7 @@
           <input id="taskDateFilter" type="date" class="task-date hidden" aria-label="Task date">
           <input id="taskFromFilter" type="date" class="task-range hidden" aria-label="Tasks from date">
           <input id="taskToFilter" type="date" class="task-range hidden" aria-label="Tasks to date">
-          <select id="taskStatusFilter"><option value="">All Status</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select>
+          <select id="taskStatusFilter"><option value="">All Status</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Content Not Given Properly</option><option>Blocked</option><option>Cancelled</option></select>
           <select id="taskPriorityFilter"><option value="">All Priority</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
           <select id="taskSourceFilter"><option value="">All Sources</option><option value="google_sheet">Google Sheet</option><option value="manual">Manual</option></select>
           <button id="clearTaskFilters" type="button" class="secondary">Clear</button>
@@ -216,7 +217,7 @@
         <div class="card">
           <div class="card-head"><h2>Status & Priority Rules</h2></div>
           <div class="mapping-grid">
-            <div><h3>Sheet Status</h3><p><b>Done</b> → Completed</p><p><b>WIP</b> → In Progress</p><p><b>Pending</b> → Pending</p><p><b>Blank</b> → Not Started</p><p><b>Blocked / Hold</b> → Blocked</p></div>
+            <div><h3>Sheet Status</h3><p><b>Done</b> → Completed</p><p><b>WIP / Half done / Data is in process</b> → In Progress</p><p><b>Changes / Creative only / Reel only / Video only</b> → In Progress</p><p><b>Pending</b> → Pending</p><p><b>Content not given proper / by client</b> → Content Not Given Properly</p><p><b>Content not approved / No data / Data not shared</b> → Blocked</p><p><b>Blank</b> → Not Started</p><p><b>Blocked / Hold</b> → Blocked</p></div>
             <div><h3>Sheet Priority</h3><p><b>Urgent / Critical</b> → Critical</p><p><b>High / Imp</b> → High</p><p><b>Medium</b> → Medium</p><p><b>Low</b> → Low</p><p><b>Blank</b> → Medium</p></div>
           </div>
         </div>
@@ -237,7 +238,7 @@
       <label>Category<select id="taskCategory"></select></label>
       <label>Priority<select id="taskPriority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></label>
       <label>Due Date & Time<input type="datetime-local" id="taskDue"></label>
-      <label>Status<select id="taskStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Blocked</option><option>Cancelled</option></select></label>
+      <label>Status<select id="taskStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Pending</option><option>Content Not Given Properly</option><option>Blocked</option><option>Cancelled</option></select></label>
       <label class="wide">Remarks<textarea id="taskRemarks"></textarea></label>
     </div>
     <div class="modal-actions"><button type="button" class="secondary" data-close="taskModal">Cancel</button><button>Save Task</button></div>
@@ -250,7 +251,7 @@
     <input type="hidden" id="userId">
     <div class="form-grid">
       <label>Name<input id="userName" required></label><label>Email<input id="userEmail" type="email" required></label>
-      <label>Designation<select id="userDesignation"><option value="">Select designation</option><option>Graphic Designer</option><option>Video Editor </option><option>POC</option><option>Content Responsible</option></select></label>
+      <label>Designation<select id="userDesignation"><option value="">Select designation</option><option value="Graphic">Graphic Designer</option><option value="Video">Video Editor</option><option value="POC">POC</option><option value="Content Responsible">Content Responsible</option></select></label>
       <label>Department<input id="userDepartment"></label><label>Role<select id="userRole"><option value="employee">Employee</option><option value="admin">Admin</option></select></label>
       <label>Password<input id="userPassword" type="password" placeholder="Minimum 6 characters"></label><label>Status<select id="userStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
     </div>

@@ -11,6 +11,17 @@ function send(res, data, status=200) {
 }
 function fail(message,status=400){const e=new Error(message);e.status=status;throw e;}
 function employeeNameKey(name) { return String(name||'').trim().replace(/\s+/g,' ').toLowerCase(); }
+function taskWorkType(task,fallback='') {
+  const type=String(task.task_type||'').trim().toLowerCase();
+  const description=String(task.task_description||'').trim().toLowerCase();
+  const video=/\b(video|reel|motion|animation|animated|outro|intro)\b/;
+  const graphic=/\b(graphic|flyer|carousel|static|resize|logo|thumbnail|menu|creative|poster|banner|post)\b/;
+  if(video.test(type)) return 'Video';
+  if(graphic.test(type)) return 'Graphic';
+  if(video.test(description)) return 'Video';
+  if(graphic.test(description)) return 'Graphic';
+  return ['Graphic','Video'].includes(fallback)?fallback:'';
+}
 async function body(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (_) { return {}; } }
@@ -143,6 +154,25 @@ module.exports = async function handler(req,res) {
         let rows=await fetchAll(make);
         const {userMap,catMap}=await maps();
         rows=rows.map(t=>({...t,employee_name:userMap.get(Number(t.employee_id))?.name||'',category_name:t.category_id?catMap.get(Number(t.category_id))?.name||null:null}));
+        if(q.work_type && ['Graphic','Video'].includes(q.work_type)) {
+          rows=rows.filter(t=>taskWorkType(t,userMap.get(Number(t.employee_id))?.designation)===q.work_type);
+        }
+        if(q.category) {
+          const category=cleanString(q.category,120).toLowerCase();
+          rows=rows.filter(t=>(t.category_name||'Uncategorized').toLowerCase()===category);
+        }
+        if(q.client) {
+          const client=cleanString(q.client,200).toLowerCase();
+          rows=rows.filter(t=>(String(t.client_name||'').trim()||'Manual / No Client').toLowerCase()===client);
+        }
+        if(q.poc) {
+          const poc=cleanString(q.poc,200).toLowerCase();
+          rows=rows.filter(t=>String(t.poc||'').trim().toLowerCase()===poc);
+        }
+        if(q.content_responsible) {
+          const contentResponsible=cleanString(q.content_responsible,200).toLowerCase();
+          rows=rows.filter(t=>String(t.content_responsible||'').trim().toLowerCase()===contentResponsible);
+        }
         if(q.search) {
           const s=cleanString(q.search,120).toLowerCase();
           rows=rows.filter(t=>[t.task_description,t.remarks,t.employee_name,t.client_name,t.poc,t.content_responsible].some(v=>String(v||'').toLowerCase().includes(s)));
@@ -154,7 +184,7 @@ module.exports = async function handler(req,res) {
         const employeeId=user.role==='admin'?Number(input.employee_id||user.id):Number(user.id);
         const desc=cleanString(input.task_description,2000); if(!desc) fail('Task description is required.',422);
         let priority=cleanString(input.priority||'Medium',20); if(!['Low','Medium','High','Critical'].includes(priority)) priority='Medium';
-        let status=cleanString(input.status||'Not Started',30); if(!['Not Started','In Progress','Completed','Pending','Blocked','Cancelled'].includes(status)) status='Not Started';
+        let status=cleanString(input.status||'Not Started',30); if(!['Not Started','In Progress','Completed','Pending','Content Not Given Properly','Blocked','Cancelled'].includes(status)) status='Not Started';
         const row={employee_id:employeeId,task_date:cleanString(input.task_date||indiaDateTimeString().slice(0,10),10),task_description:desc,category_id:input.category_id!==''&&input.category_id!=null?Number(input.category_id):null,priority,due_date:cleanString(input.due_date,30)||null,status,remarks:cleanString(input.remarks,2000),source:'manual',updated_at:indiaDateTimeString()};
         const {data,error}=await db().from('tasks').insert(row).select('id').single(); if(error) throw new Error(error.message);
         return send(res,{ok:true,message:'Task added.',id:Number(data.id)},201);
@@ -167,7 +197,7 @@ module.exports = async function handler(req,res) {
         if(user.role!=='admin' && Number(task.employee_id)!==Number(user.id)) fail(method==='DELETE'?'You can delete only your own tasks.':'You can edit only your own tasks.',403);
         if(method==='DELETE') { const {error:e}=await db().from('tasks').delete().eq('id',id); if(e) throw new Error(e.message); return send(res,{ok:true,message:'Task deleted.'}); }
         let priority=cleanString(input.priority||'Medium',20); if(!['Low','Medium','High','Critical'].includes(priority)) priority='Medium';
-        let status=cleanString(input.status||'Not Started',30); if(!['Not Started','In Progress','Completed','Pending','Blocked','Cancelled'].includes(status)) status='Not Started';
+        let status=cleanString(input.status||'Not Started',30); if(!['Not Started','In Progress','Completed','Pending','Content Not Given Properly','Blocked','Cancelled'].includes(status)) status='Not Started';
         const update={employee_id:user.role==='admin'?Number(input.employee_id||task.employee_id):Number(user.id),task_date:cleanString(input.task_date||indiaDateTimeString().slice(0,10),10),task_description:cleanString(input.task_description,2000),category_id:input.category_id!==''&&input.category_id!=null?Number(input.category_id):null,priority,due_date:cleanString(input.due_date,30)||null,status,remarks:cleanString(input.remarks,2000),updated_at:indiaDateTimeString()};
         const {error:e}=await db().from('tasks').update(update).eq('id',id); if(e) throw new Error(e.message);
         return send(res,{ok:true,message:'Task updated.'});
@@ -241,7 +271,7 @@ module.exports = async function handler(req,res) {
     }
 
     if(action.startsWith('analytics.')) {
-      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,category_id,priority,due_date,status,client_name,poc,content_responsible,source,remarks,editor_remarks,reference_links');
+      const {from,to,tasks}=await rangeTasks(q,user,'id,employee_id,task_date,task_description,task_type,category_id,priority,due_date,status,client_name,poc,content_responsible,source,remarks,editor_remarks,reference_links');
       if(action==='analytics.dashboard') {
         const total=tasks.length, completed=tasks.filter(t=>t.status==='Completed').length, pending=tasks.filter(t=>t.status==='Pending').length,
           in_progress=tasks.filter(t=>t.status==='In Progress').length, blocked=tasks.filter(t=>t.status==='Blocked').length,
@@ -270,7 +300,7 @@ module.exports = async function handler(req,res) {
         const groups=new Map(labels.map(label=>[label,{label,total:0,completed:0,eligible:0,employees:new Map()}]));
         tasks.forEach(task=>{
           const employee=userMap.get(Number(task.employee_id));
-          const designation=employee?.designation;
+          const designation=['Graphic','Video'].includes(employee?.designation)?taskWorkType(task,employee.designation):employee?.designation;
           const row=groups.get(designation); if(!row) return;
           row.total++; if(task.status==='Completed') row.completed++; if(task.status!=='Cancelled') row.eligible++;
           const employeeRow=row.employees.get(Number(task.employee_id))||{id:Number(task.employee_id),name:employee.name,total:0,completed:0,eligible:0};
@@ -308,7 +338,8 @@ module.exports = async function handler(req,res) {
           const searchable=[task.remarks,task.editor_remarks,task.reference_links,task.task_description].join(' ').toLowerCase();
           const channel=/whats\s*app|whastp|whatsapp/.test(searchable)?'whatsapp':task.source==='google_sheet'?'google_sheet':'manual';
           totals[channel]++;
-          const designation=userMap.get(Number(task.employee_id))?.designation;
+          const employeeDesignation=userMap.get(Number(task.employee_id))?.designation;
+          const designation=['Graphic','Video'].includes(employeeDesignation)?taskWorkType(task,employeeDesignation):employeeDesignation;
           const designationRow=designationTotals.get(designation); if(designationRow){designationRow[channel]++;designationRow.total++;}
           const client=String(task.client_name||'').trim()||'Unassigned Client';
           const row=clients.get(client)||{client,google_sheet:0,whatsapp:0,manual:0,total:0}; row[channel]++; row.total++; clients.set(client,row);

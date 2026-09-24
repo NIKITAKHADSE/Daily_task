@@ -83,6 +83,16 @@ function sheetCell(row,map,keys) {
   return '';
 }
 
+// Some monthly tabs rename the date heading with instructions such as
+// "Please refer to June month sheet date". Prefer the normal Date column,
+// then accept an instructional heading that still clearly ends in "date".
+function sheetDateCell(row,map) {
+  const direct=sheetCell(row,map,['Date','Date.']);
+  if(direct) return direct;
+  const dateEntry=Object.entries(map).find(([key])=>key.endsWith('sheetdate'));
+  return dateEntry ? String(row[dateEntry[1]] ?? '').trim() : '';
+}
+
 const MONTHS = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
 function validDate(y,m,d) {
   const x=new Date(Date.UTC(y,m-1,d));
@@ -114,12 +124,17 @@ function parseSheetDate(value, defaultYear) {
 }
 
 function normalizeSheetStatus(raw) {
-  let v=String(raw||'').trim().toLowerCase().replace(/[^a-z]+/g,' ').trim();
+  const v=String(raw||'').trim().toLowerCase().replace(/[^a-z]+/g,' ').trim();
   if(!v) return 'Not Started';
+  // Partial-progress labels must be checked before "done" because "Half done"
+  // contains that word but is not a completed task.
+  if(v==='wip'||v.includes('half done')||v.includes('data is in process')||v.includes('in progress')||v.includes('working')) return 'In Progress';
+  if(['changes','creative only','reel only','video only'].includes(v)) return 'In Progress';
   if(v.includes('done')||v.includes('complete')) return 'Completed';
-  if(v==='wip'||v.includes('in progress')||v.includes('working')) return 'In Progress';
   if(v.includes('pending')) return 'Pending';
-  if(v.includes('block')||v.includes('hold')) return 'Blocked';
+  if(v.includes('content') && (v.includes('not given proper')||v.includes('not provided proper')||v.includes('not given by client'))) return 'Content Not Given Properly';
+  if(v.includes('content not approved')||v==='no data'||v.includes('didn t gave the data')||v.includes('didn t give the data')||v.includes('hasn t shared the data')) return 'Blocked';
+  if(v.includes('block')||v.includes('hold')||v.includes('not approved')) return 'Blocked';
   if(v.includes('cancel')) return 'Cancelled';
   if(v.includes('not started')) return 'Not Started';
   return 'Not Started';
@@ -165,7 +180,6 @@ function resolveCarriedTaskStatuses(tasks) {
       if(task.status==='Completed') completedLater=true;
       else if(completedLater && ['Pending','In Progress','Not Started'].includes(task.status)) {
         task.status='Completed';
-        task.raw_status='Completed (carried forward)';
       }
     }
   }
@@ -267,12 +281,16 @@ async function syncGoogleSheet(force=false) {
     const parsed=[]; let lastDate=null;
     for(const {tab,rows,headerRow,map} of readableTabs) {
       lastDate=null;
+      let taskRowCount=0;
+      let datedTaskRowCount=0;
       const titleYear=String(tab.title).match(/\b(20\d{2})\b/);
       const year=titleYear?Number(titleYear[1]):configuredYear;
       for(let i=headerRow+1;i<rows.length;i++) {
         const row=rows[i]; const task=sheetCell(row,map,['Tasks','Task','Task Description']); if(!task) continue;
-        const dateRaw=sheetCell(row,map,['Date','Date.']); let date=parseSheetDate(dateRaw,year);
+        taskRowCount++;
+        const dateRaw=sheetDateCell(row,map); let date=parseSheetDate(dateRaw,year);
         if(date) lastDate=date; if(!date) date=lastDate; if(!date) continue;
+        datedTaskRowCount++;
         const client=sheetCell(row,map,['Name','Client','Client Name']);
         const type=sheetCell(row,map,['Type','Category']);
         const poc=sheetCell(row,map,['POC']);
@@ -292,6 +310,9 @@ async function syncGoogleSheet(force=false) {
         for(const editor of employeeNames) {
           parsed.push({sheet_key:`${info.sheet_id}:${tab.gid}`,row_number:i+1,date,day,client,type,poc,task,content_responsible:contentResponsible,editor,reference,time_taken:timeTaken,priority_raw:priorityRaw,priority:normalizeSheetPriority(priorityRaw),status_raw:statusRaw,status:normalizeSheetStatus(statusRaw),editor_remarks:editorRemarks,acc_remark:accRemark,manager_remark:managerRemark});
         }
+      }
+      if(taskRowCount && !datedTaskRowCount) {
+        throw userError(`${tab.title||'A Google Sheet tab'} returned ${taskRowCount} task rows but its date column could not be read. Keep "Date" in the heading (extra instructional text is allowed). The existing synced data was kept.`);
       }
     }
     if(!parsed.length) throw userError('No task rows could be read. Check the Date and Tasks columns in the connected sheet tab.');

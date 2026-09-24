@@ -27,7 +27,7 @@ create table if not exists public.tasks (
   category_id bigint references public.categories(id) on delete set null,
   priority text not null default 'Medium' check (priority in ('Low','Medium','High','Critical')),
   due_date text,
-  status text not null default 'Not Started' check (status in ('Not Started','In Progress','Completed','Pending','Blocked','Cancelled')),
+  status text not null default 'Not Started' check (status in ('Not Started','In Progress','Completed','Pending','Content Not Given Properly','Blocked','Cancelled')),
   remarks text,
   created_at timestamp without time zone not null default current_timestamp,
   updated_at timestamp without time zone not null default current_timestamp,

@@ -173,17 +173,24 @@ button{background:#17334a}button:hover{background:#244f68}.secondary,.ghost{back
 }
 
 /* Mobile layout and off-canvas navigation */
-.nav-backdrop{display:none}
+.nav-backdrop,.close-menu{display:none}
 @media(max-width:1000px){
   body.nav-open{overflow:hidden}
   .app{display:block;min-height:100dvh}
   main{width:100%;min-width:0}
-  .sidebar{inset:0 auto 0 0;transform:translateX(-105%);left:0;width:min(82vw,300px);height:100dvh;z-index:50;transition:transform .22s ease;overflow-y:auto;overscroll-behavior:contain}
+  .sidebar{position:fixed;inset:0 auto 0 0;transform:translateX(-105%);left:0;width:min(86vw,310px);height:100dvh;padding:calc(20px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));z-index:50;transition:transform .22s ease;overflow-y:auto;overscroll-behavior:contain}
   .sidebar.open{left:0;transform:translateX(0)}
+  .sidebar .logo{padding:0 48px 24px 6px;min-height:52px}
+  .sidebar nav{gap:8px}
+  .sidebar .nav{width:100%;min-height:50px;padding-left:48px;font-size:14px}
+  .sidebar .nav:before{left:17px}
+  .sidebar .side-bottom{padding-bottom:0}
+  .close-menu{position:absolute;top:calc(16px + env(safe-area-inset-top));right:14px;z-index:2;display:grid;place-items:center;width:42px;height:42px;min-height:42px;padding:0;border:1px solid #ffffff1c;border-radius:12px;background:#ffffff10;color:#fff;font-size:27px;line-height:1;box-shadow:none}
+  .close-menu:hover{transform:none;background:#ffffff1c;box-shadow:none}
   .nav-backdrop{position:fixed;inset:0;z-index:40;display:block;width:100%;height:100%;min-height:0;padding:0;border:0;border-radius:0;background:#10251f80;box-shadow:none;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,visibility .2s ease}
   .nav-backdrop:hover{background:#10251f80;box-shadow:none;transform:none}
   body.nav-open .nav-backdrop{opacity:1;visibility:visible;pointer-events:auto}
-  header{width:100%;min-width:0}
+  header{top:0;width:100%;min-width:0;box-shadow:0 3px 18px #173c3212}
   header>div:nth-child(2){overflow:hidden}
   header h1,header p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .page{width:100%;min-width:0}
@@ -236,4 +243,50 @@ button{background:#17334a}button:hover{background:#244f68}.secondary,.ghost{back
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+}
+
+/* Navigation symbols use escapes so they render consistently across encodings. */
+.nav[data-page="dashboard"]:before{content:"\25C8"}
+.nav[data-page="tasks"]:before{content:"\2713"}
+.nav[data-page="sharingAnalysis"]:before{content:"\2197"}
+.nav[data-page="employees"]:before{content:"\25CE"}
+.nav[data-page="googleSheet"]:before{content:"\25A6"}
+
+/* Dashboard alignment */
+#dashboardPage>.card,#dashboardPage>.grid2{width:100%}
+#dashboardPage>.grid2{margin-bottom:18px}
+#dashboardPage .grid2{align-items:start}
+#dashboardPage .grid2>.card{width:100%;min-width:0;margin-bottom:0}
+#dashboardPage .dashboard-lead-charts{align-items:start}
+#dashboardPage .dashboard-lead-charts>.card{align-self:start}
+#dashboardPage .card-head{width:100%}
+#dashboardPage .card-head>div{width:100%}
+#dashboardPage .chart-box canvas{max-width:100%!important}
+#dashboardPage .best-performance-item{height:100%}
+#dashboardPage .responsibility-graphs>div{min-width:0}
+#dashboardPage #employeeSelect{max-width:240px}
+
+@media(max-width:1000px){
+  #dashboardPage .dashboard-lead-charts{gap:14px}
+  #dashboardPage .employee-chart-scroll{max-height:520px}
+  #dashboardPage .responsibility-graphs{grid-template-columns:1fr 1fr}
+}
+
+@media(max-width:600px){
+  #dashboardPage .date-toolbar{margin-bottom:12px}
+  #dashboardPage .kpis{margin:12px 0 16px}
+  #dashboardPage .grid2{gap:12px}
+  #dashboardPage>.grid2{margin-bottom:12px}
+  #dashboardPage .grid2>.card{margin-bottom:0}
+  #dashboardPage .card-head{padding-bottom:10px}
+  #dashboardPage .employee-chart-scroll{max-height:420px;padding-right:0}
+  #dashboardPage .employee-chart-box{min-height:260px}
+  #dashboardPage .task-status-card .chart-box{min-height:260px}
+  #dashboardPage .responsibility-graphs{grid-template-columns:1fr;gap:10px}
+  #dashboardPage .responsibility-graphs>div{padding:10px}
+  #dashboardPage .best-performance-item{padding:14px}
+  #dashboardPage .best-performance-item strong{font-size:16px}
+  #dashboardPage .best-performance-item b{font-size:22px}
+  #dashboardPage #employeeSelect{width:100%;max-width:none}
+  #dashboardPage .designation-chart-box{min-height:180px}
 }

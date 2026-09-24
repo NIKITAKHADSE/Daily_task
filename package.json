@@ -4,7 +4,7 @@
   "private": true,
   "description": "Daily Task Manager converted from PHP/SQLite to Vercel serverless + Supabase while preserving the existing UI and Google Sheet connector.",
   "scripts": {
-    "check": "node --check api/router.js && node --check api/cron-sync.js && node --check api/_lib/auth.js && node --check api/_lib/db.js && node --check api/_lib/googleSheet.js && node --check api/_lib/utils.js"
+    "check": "node --check api/router.js && node --check api/cron-sync.js && node --check api/_lib/auth.js && node --check api/_lib/db.js && node --check api/_lib/googleSheet.js && node --check api/_lib/utils.js && node --check assets/app.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",

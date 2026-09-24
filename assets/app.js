@@ -6,6 +6,7 @@ const S = {
   users: [],
   charts: {},
   sheet: null,
+  taskDrilldown: {},
 };
 
 const $ = s => document.querySelector(s);
@@ -148,16 +149,35 @@ function setMobileNav(open) {
   menu.setAttribute('aria-expanded', String(expanded));
   menu.setAttribute('aria-label', expanded ? 'Close navigation' : 'Open navigation');
   document.body.classList.toggle('nav-open', expanded);
+  if (expanded) requestAnimationFrame(() => $('#closeMenuBtn')?.focus());
 }
 
 function closeMobileNav() { setMobileNav(false); }
+function closeMobileNavAndFocus() {
+  closeMobileNav();
+  $('#menuBtn')?.focus();
+}
 
 $('#menuBtn')?.addEventListener('click', () => setMobileNav(!$('.sidebar')?.classList.contains('open')));
-$('#navBackdrop')?.addEventListener('click', closeMobileNav);
+$('#closeMenuBtn')?.addEventListener('click', closeMobileNavAndFocus);
+$('#navBackdrop')?.addEventListener('click', closeMobileNavAndFocus);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('.sidebar')?.classList.contains('open')) {
-    closeMobileNav();
-    $('#menuBtn')?.focus();
+    closeMobileNavAndFocus();
+    return;
+  }
+  if (e.key === 'Tab' && $('.sidebar')?.classList.contains('open')) {
+    const focusable = [...$('.sidebar').querySelectorAll('button:not([disabled]):not(.hidden)')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 });
 window.matchMedia('(max-width: 1000px)').addEventListener('change', closeMobileNav);
@@ -195,6 +215,7 @@ function chart(id, type, labels, data, label, config={}) {
   const isCircle = type === 'doughnut' || type === 'pie';
   const horizontal = config.horizontal === true;
   const percentage = config.percentage === true || label.includes('%');
+  const compact = window.matchMedia('(max-width: 600px)').matches;
   const palette=['#14b88a','#4f7cff','#f6a723','#ec6573','#8b6ee8','#20a5c7','#f07d3d'];
   const defaultBackground=isCircle ? labels.map((_,i)=>palette[i%palette.length]) : type==='line' ? '#14b88a22' : '#14b88acc';
   const defaultBorder=isCircle ? '#ffffff' : '#11926f';
@@ -211,13 +232,25 @@ function chart(id, type, labels, data, label, config={}) {
       responsive:true,
       maintainAspectRatio:false,
       indexAxis:horizontal ? 'y' : 'x',
+      onClick:config.onClick ? (event,elements) => {
+        if (elements.length) config.onClick(elements[0].index);
+      } : undefined,
+      onHover:config.onClick ? (event,elements) => {
+        event.native.target.style.cursor=elements.length?'pointer':'default';
+      } : undefined,
       plugins:{
-        legend:{ display:isCircle, position:'bottom', labels:{usePointStyle:true,padding:18} },
+        legend:{ display:isCircle, position:'bottom', labels:{usePointStyle:true,padding:compact?10:18,boxWidth:compact?10:14,font:{size:compact?10:12}} },
         tooltip:{callbacks:{label:context=>`${context.dataset.label}: ${context.raw}${percentage?'%':''}`}}
       },
       scales:isCircle ? {} : horizontal
-        ? { x:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) }, y:{ grid:{display:false} } }
-        : { y:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) } }
+        ? {
+            x:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) },
+            y:{ grid:{display:false},ticks:{font:{size:compact?10:12},callback(index){const value=this.getLabelForValue(index);return compact&&value.length>22?`${value.slice(0,21)}…`:value}} }
+          }
+        : {
+            x:{ticks:{autoSkip:true,maxRotation:0,minRotation:0,font:{size:compact?10:12}}},
+            y:{ beginAtZero:true, ...(percentage?{max:100}:{ticks:{precision:0}}) }
+          }
     }
   });
 }
@@ -242,16 +275,19 @@ async function loadDashboard() {
     const employeeChartHeight=Math.max(310,employeesByTaskCount.length*38);
     $('#employeeTotalChartBox').style.height=`${employeeChartHeight}px`;
     chart('employeeTotalChart','bar',employeesByTaskCount.map(x=>`${x.name} (${x.total})`),employeesByTaskCount.map(x=>x.total),'Total Tasks',{
-      horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb'
+      horizontal:true,backgroundColor:'#3b82f6cc',borderColor:'#2563eb',
+      onClick:index=>showDashboardChartTasks({employee_id:employeesByTaskCount[index].id},`Employee: ${employeesByTaskCount[index].name}`)
     });
-    chart('statusChart','doughnut',st.items.map(x=>`${statusText(x.label)} (${x.value})`),st.items.map(x=>x.value),'Tasks');
+    chart('statusChart','doughnut',st.items.map(x=>`${statusText(x.label)} (${x.value})`),st.items.map(x=>x.value),'Tasks',{
+      onClick:index=>showDashboardChartTasks({status:st.items[index].label,source:'google_sheet'},`Status: ${st.items[index].label}`)
+    });
     chart('dailyChart','line',day.daily.map(x=>x.date),day.daily.map(x=>x.completion),'Completion %');
     chart('todayChart','bar',today.employees.map(x=>x.name),today.employees.map(x=>x.completion),'Today %');
-    chart('categoryChart','bar',cat.items.map(x=>`${x.label} (${x.total})`),cat.items.map(x=>x.total),'Total Created Tasks',{backgroundColor:'#e97963cc',borderColor:'#c45d4b'});
-    chart('priorityChart','bar',pri.items.map(x=>x.label),pri.items.map(x=>x.completion),'Completion %');
-    chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %');
+    chart('categoryChart','bar',cat.items.map(x=>`${x.label} (${x.total})`),cat.items.map(x=>x.total),'Total Created Tasks',{backgroundColor:'#e97963cc',borderColor:'#c45d4b',onClick:index=>showDashboardChartTasks({category:cat.items[index].label},`Type: ${cat.items[index].label}`)});
+    chart('priorityChart','bar',pri.items.map(x=>x.label),pri.items.map(x=>x.completion),'Completion %',{onClick:index=>showDashboardChartTasks({priority:pri.items[index].label},`Priority: ${pri.items[index].label}`)});
+    chart('clientChart','bar',clients.items.map(x=>x.label),clients.items.map(x=>x.completion),'Completion %',{onClick:index=>showDashboardChartTasks({client:clients.items[index].label},`Client: ${clients.items[index].label}`)});
     $('#designationReports').innerHTML = designations.items.map((designation,index) => `<section class="designation-section"><div class="designation-section-head"><div><span class="eyebrow">${index===0?'Highest performance':''}</span><h3>${esc(designation.label)}</h3></div><div class="designation-summary"><b>${designation.completion}%</b><span>${designation.completed}/${designation.total} completed</span><span>${designation.total} total tasks</span></div></div><div class="designation-chart-box"><canvas id="designationChart${index}"></canvas></div></section>`).join('');
-    designations.items.forEach((designation,index) => chart(`designationChart${index}`,'bar',designation.employees.map(employee=>`${employee.name} (${employee.completed}/${employee.total})`),designation.employees.map(employee=>employee.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:index===0?'#f4a524cc':'#36a984cc',borderColor:index===0?'#c77d08':'#167d62'}));
+    designations.items.forEach((designation,index) => chart(`designationChart${index}`,'bar',designation.employees.map(employee=>`${employee.name} (${employee.completed}/${employee.total})`),designation.employees.map(employee=>employee.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:index===0?'#f4a524cc':'#36a984cc',borderColor:index===0?'#c77d08':'#167d62',onClick:employeeIndex=>showDashboardChartTasks({employee_id:designation.employees[employeeIndex].id,work_type:['Graphic','Video'].includes(designation.label)?designation.label:''},`${designation.label}: ${designation.employees[employeeIndex].name}`)}));
     const responsibilityTotals = (field) => {
       const totals = new Map();
       clientResponsibilities.items.forEach(client => (client[field] || []).forEach(person => {
@@ -262,8 +298,8 @@ async function loadDashboard() {
     };
     const pocTotals=responsibilityTotals('pocs');
     const contentTotals=responsibilityTotals('contentResponsible');
-    chart('pocCompletionChart','bar',pocTotals.map(person=>`${person.name} (${person.completed}/${person.total})`),pocTotals.map(person=>person.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:'#f2b84bcc',borderColor:'#bc7c16'});
-    chart('contentCompletionChart','bar',contentTotals.map(person=>`${person.name} (${person.completed}/${person.total})`),contentTotals.map(person=>person.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:'#087f72cc',borderColor:'#056258'});
+    chart('pocCompletionChart','bar',pocTotals.map(person=>`${person.name} (${person.completed}/${person.total})`),pocTotals.map(person=>person.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:'#f2b84bcc',borderColor:'#bc7c16',onClick:index=>showDashboardChartTasks({poc:pocTotals[index].name},`POC: ${pocTotals[index].name}`)});
+    chart('contentCompletionChart','bar',contentTotals.map(person=>`${person.name} (${person.completed}/${person.total})`),contentTotals.map(person=>person.completion),'Completion %',{horizontal:true,percentage:true,backgroundColor:'#087f72cc',borderColor:'#056258',onClick:index=>showDashboardChartTasks({content_responsible:contentTotals[index].name},`Content Responsible: ${contentTotals[index].name}`)});
     $('#clientResponsibilityRows').innerHTML = clientResponsibilities.items.length ? clientResponsibilities.items.map(item => `<tr><td><strong>${esc(item.client)}</strong></td><td>${item.total}</td><td>${item.completed}/${item.total} (${item.completion}%)</td><td>${item.topPoc ? `<strong>${esc(item.topPoc.name)}</strong><div class="cell-small">${item.topPoc.completed}/${item.topPoc.total} completed (${item.topPoc.completion}%)</div>` : '-'}</td><td>${item.topContentResponsible ? `<strong>${esc(item.topContentResponsible.name)}</strong><div class="cell-small">${item.topContentResponsible.completed}/${item.topContentResponsible.total} completed (${item.topContentResponsible.completion}%)</div>` : '-'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No Graphic or Video editor tasks found.</td></tr>';
     $('#bestPerformance').innerHTML = [performance.week,performance.month].map((item,index) => item ? `<div class="best-performance-item"><span>${index ? 'Highest Task Volume This Month' : 'Highest Task Volume This Week'}</span><strong>${esc(item.employee_name)}</strong><b>${item.total} tasks</b><small>${esc(item.period)} · ${item.completed} completed (${item.completion}%)</small></div>` : `<div class="best-performance-item"><span>${index ? 'Highest Task Volume This Month' : 'Highest Task Volume This Week'}</span><strong>No task data</strong><small>No assigned tasks available.</small></div>`).join('');
 
@@ -274,11 +310,24 @@ async function loadDashboard() {
 }
 
 async function showDashboardStatusTasks(status) {
+  return showDashboardChartTasks({status},`Status: ${status}`);
+}
+
+async function showDashboardChartTasks(filters={},label='Chart selection') {
   const [from,to]=S.dashboardRange||[];
+  S.taskDrilldown={
+    employee_id:filters.employee_id||'',
+    category:filters.category||'',
+    client:filters.client||'',
+    poc:filters.poc||'',
+    content_responsible:filters.content_responsible||'',
+    work_type:filters.work_type||'',
+    label
+  };
   $('#taskSearch').value='';
-  $('#taskStatusFilter').value=status;
-  $('#taskPriorityFilter').value='';
-  $('#taskSourceFilter').value='';
+  $('#taskStatusFilter').value=filters.status||'';
+  $('#taskPriorityFilter').value=filters.priority||'';
+  $('#taskSourceFilter').value=filters.source||'';
   if(from && to) {
     $('#taskDateMode').value='range';
     $('#taskFromFilter').value=from;
@@ -320,7 +369,28 @@ async function loadEmployeeDetail() {
 }
 
 $('#employeeSelect')?.addEventListener('change', loadEmployeeDetail);
-$('#refreshBtn')?.addEventListener('click', async () => { await maybeAutoSync(true); await loadDashboard(); });
+async function refreshDashboardForRange(force=false) {
+  const button=$('#refreshBtn');
+  const oldText=button?.textContent;
+  if(button) { button.disabled=true; button.textContent='Loading...'; }
+  try {
+    if(force && S.user?.role==='admin') {
+      await api('google_sheet.sync',{method:'POST',body:{force:true}});
+      await loadMeta();
+      await loadSheetStatus();
+    } else {
+      await maybeAutoSync(false);
+    }
+    await loadDashboard();
+  } catch(e) {
+    toast(e.message);
+    await loadSheetStatus();
+  } finally {
+    if(button) { button.disabled=false; button.textContent=oldText; }
+  }
+}
+
+$('#refreshBtn')?.addEventListener('click', () => refreshDashboardForRange(true));
 function updateQuickDateTabs() {
   const selected=$('#range')?.value;
   $$('.date-quick-tab').forEach(button=>button.classList.toggle('active',button.dataset.reportRange===selected));
@@ -335,7 +405,7 @@ function updateDashboardDateControls() {
 $('#range')?.addEventListener('change', () => {
   const value = $('#range').value;
   updateDashboardDateControls();
-  if (!['custom','selected_month','exact_date'].includes(value)) loadDashboard();
+  if (!['custom','selected_month','exact_date'].includes(value)) refreshDashboardForRange(false);
 });
 $$('.date-quick-tab').forEach(button=>button.addEventListener('click',()=>{
   const range=button.dataset.reportRange;
@@ -345,13 +415,13 @@ $$('.date-quick-tab').forEach(button=>button.addEventListener('click',()=>{
     const input=$('#reportDate');
     input.focus();
     if(typeof input.showPicker==='function') input.showPicker();
-  } else loadDashboard();
+  } else refreshDashboardForRange(false);
 }));
 $$('.custom-date').forEach(e => e.addEventListener('change', () => {
-  if ($('#fromDate').value && $('#toDate').value) loadDashboard();
+  if ($('#fromDate').value && $('#toDate').value) refreshDashboardForRange(false);
 }));
-$('#reportMonth')?.addEventListener('change', loadDashboard);
-$('#reportDate')?.addEventListener('change', loadDashboard);
+$('#reportMonth')?.addEventListener('change', () => refreshDashboardForRange(false));
+$('#reportDate')?.addEventListener('change', () => refreshDashboardForRange(false));
 
 // ---------- TASKS ----------
 async function loadTasks() {
@@ -375,6 +445,12 @@ async function loadTasks() {
       status:$('#taskStatusFilter').value,
       priority:$('#taskPriorityFilter').value,
       source:$('#taskSourceFilter').value,
+      employee_id:S.taskDrilldown.employee_id,
+      category:S.taskDrilldown.category,
+      client:S.taskDrilldown.client,
+      poc:S.taskDrilldown.poc,
+      content_responsible:S.taskDrilldown.content_responsible,
+      work_type:S.taskDrilldown.work_type,
       from, to,
     }});
     const today=todayLocal();
@@ -387,7 +463,7 @@ async function loadTasks() {
       return Number(b.id||0)-Number(a.id||0);
     });
     $('#taskResultCount').textContent = `${S.tasks.length} task${S.tasks.length===1?'':'s'}`;
-    $('#taskPeriodLabel').textContent = period;
+    $('#taskPeriodLabel').textContent = S.taskDrilldown.label ? `${period} • ${S.taskDrilldown.label}` : period;
     $('#taskRows').innerHTML = S.tasks.length ? S.tasks.map(t => {
       const sheet = t.source === 'google_sheet';
       const action = sheet ? '<span class="readonly-label">Edit in Google Sheet</span>' : `<div class="actions"><button onclick="editTask(${t.id})">Edit</button><button class="danger" onclick="deleteTask(${t.id})">Delete</button></div>`;
@@ -431,6 +507,7 @@ $('#taskDateMode')?.addEventListener('change', () => {
   if(mode==='month' || mode==='date' || (mode==='range' && $('#taskFromFilter').value && $('#taskToFilter').value)) loadTasks();
 }));
 $('#clearTaskFilters')?.addEventListener('click',()=>{
+  S.taskDrilldown={};
   $('#taskSearch').value=''; $('#taskDateMode').value='all'; $('#taskStatusFilter').value='';
   $('#taskPriorityFilter').value=''; $('#taskSourceFilter').value='';
   ['#taskMonthFilter','#taskDateFilter','#taskFromFilter','#taskToFilter'].forEach(id=>$(id).value='');
