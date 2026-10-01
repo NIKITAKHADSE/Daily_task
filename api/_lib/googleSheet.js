@@ -348,13 +348,15 @@ async function syncGoogleSheet(force=false) {
     // tabs. Allow that first replacement instead of treating the old tab as a
     // transient omission. Subsequent syncs retain the normal omission guards.
     const intentionalTabSwitch=existingKeys.size>0 && !existingKeys.has(info.sheet_key) && incomingKeys.has(info.sheet_key);
+    const narrowingToConfiguredTab=incomingKeys.size===1 && incomingKeys.has(info.sheet_key) && [...existingKeys].some(key=>key!==info.sheet_key);
+    const intentionalScopeChange=intentionalTabSwitch || narrowingToConfiguredTab;
     const missingKeys=[...existingKeys].filter(key=>!incomingKeys.has(key));
-    if(missingKeys.length && !intentionalTabSwitch) {
+    if(missingKeys.length && !intentionalScopeChange) {
       throw userError(`Google Sheets temporarily omitted ${missingKeys.length} previously synced tab${missingKeys.length===1?'':'s'}. The existing data was kept; retry shortly.`);
     }
     const existingRows=new Set(existingSheetTasks.map(task=>`${task.source_sheet_key||''}:${task.source_row||''}`));
     const incomingRows=new Set(parsed.map(task=>`${task.sheet_key||''}:${task.row_number||''}`));
-    if(!intentionalTabSwitch && existingRows.size>=100 && incomingRows.size<existingRows.size*0.8) {
+    if(!intentionalScopeChange && existingRows.size>=100 && incomingRows.size<existingRows.size*0.8) {
       throw userError(`Google Sheets returned only ${incomingRows.size} task rows, much fewer than the existing ${existingRows.size}. The existing data was kept; retry shortly.`);
     }
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
