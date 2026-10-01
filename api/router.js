@@ -117,7 +117,7 @@ module.exports = async function handler(req,res) {
       let year=Number(input.sync_year||new Date().getFullYear());
       if(year<2020||year>2100) year=new Date().getFullYear();
       const enabled=input.enabled?1:0;
-      const {error}=await db().from('google_sheet_settings').update({sheet_url:url,sheet_id:info.sheet_id,gid:info.gid,sync_interval:interval,sync_year:year,enabled}).eq('id',1);
+      const {error}=await db().from('google_sheet_settings').update({sheet_url:info.browser_url,sheet_id:info.sheet_id,gid:info.gid,sync_interval:interval,sync_year:year,enabled}).eq('id',1);
       if(error) throw new Error(error.message);
       return send(res,{ok:true,message:'Google Sheet settings saved.',settings:await getSettings()});
     }

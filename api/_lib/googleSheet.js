@@ -27,12 +27,16 @@ function parseGoogleSheetUrl(url) {
   const m = url.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if (!m) throw userError('This does not look like a Google Sheet link. Open the sheet, copy the browser URL, and paste it here.');
   const sheetId = m[1];
-  const gidMatch = url.match(/(?:[?&#]|%3F|%26)gid(?:=|%3D)(\d+)/i);
-  const gid = gidMatch ? gidMatch[1] : '0';
+  // Google can leave an old query-string gid in the address while the hash
+  // contains the tab currently selected by the user. Prefer the final gid.
+  const gidMatches = [...url.matchAll(/(?:[?&#]|%3F|%26)gid(?:=|%3D)(\d+)/gi)];
+  const gid = gidMatches.length ? gidMatches[gidMatches.length-1][1] : '0';
+  const browserUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit?gid=${gid}#gid=${gid}`;
   return {
     sheet_id: sheetId,
     gid,
     sheet_key: `${sheetId}:${gid}`,
+    browser_url: browserUrl,
     csv_url: `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`
   };
 }
