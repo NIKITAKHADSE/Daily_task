@@ -100,6 +100,10 @@ as $$
 declare
   v_count integer := 0;
 begin
+  -- Serialize snapshot replacement so concurrent browser/cron syncs cannot
+  -- both insert the same Google Sheet rows.
+  perform pg_advisory_xact_lock(hashtext('replace_google_sheet_tasks'));
+
   delete from public.tasks where source = 'google_sheet';
 
   insert into public.tasks (

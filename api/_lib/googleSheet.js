@@ -8,6 +8,19 @@ function normalizeHeader(value) {
   return String(value ?? '').replace(/^\uFEFF/, '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+function canonicalSheetHeader(value) {
+  const header=normalizeHeader(value);
+  if(header.endsWith('sheetdate')) return 'date';
+  const known=[
+    'remarksfilledbyeditors','contentresponsible','responsibleeditor','referencelinks',
+    'accountmanagerremark','accmanagerremark','managerremarks','managerremark',
+    'editorsremarks','editorremarks','timetakenvideos','timetaken',
+    'taskdescription','clientname','secondpoc','priority','tasks','task',
+    'date','day','name','client','type','category','poc','copy','status'
+  ];
+  return known.find(key=>header===key||header.startsWith(key))||header;
+}
+
 function parseGoogleSheetUrl(url) {
   url = String(url || '').trim();
   if (!url) throw userError('Paste your Google Sheet link first.');
@@ -69,8 +82,8 @@ function csvRows(csv) {
 function findSheetHeader(rows) {
   for (let rowIndex=0; rowIndex<Math.min(20,rows.length); rowIndex++) {
     const map = {};
-    rows[rowIndex].forEach((cell,i) => { const k=normalizeHeader(cell); if(k) map[k]=i; });
-    if (map.tasks !== undefined && (map.date !== undefined || map.responsibleeditor !== undefined)) return [rowIndex,map];
+    rows[rowIndex].forEach((cell,i) => { const k=canonicalSheetHeader(cell); if(k&&!Object.prototype.hasOwnProperty.call(map,k)) map[k]=i; });
+    if (map.tasks !== undefined && map.date !== undefined) return [rowIndex,map];
   }
   throw userError('Could not find the header row. Keep column names like Date, Name, Type, Tasks and Responsible editor in the sheet.');
 }
@@ -83,14 +96,8 @@ function sheetCell(row,map,keys) {
   return '';
 }
 
-// Some monthly tabs rename the date heading with instructions such as
-// "Please refer to June month sheet date". Prefer the normal Date column,
-// then accept an instructional heading that still clearly ends in "date".
 function sheetDateCell(row,map) {
-  const direct=sheetCell(row,map,['Date','Date.']);
-  if(direct) return direct;
-  const dateEntry=Object.entries(map).find(([key])=>key.endsWith('sheetdate'));
-  return dateEntry ? String(row[dateEntry[1]] ?? '').trim() : '';
+  return sheetCell(row,map,['Date','Date.']);
 }
 
 const MONTHS = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
@@ -255,10 +262,27 @@ async function syncGoogleSheet(force=false) {
     settings.enabled=1;
     settings.sync_interval=30;
   }
+  if(settings.last_sync_status==='running' && settings.last_sync_at) {
+    const leaseStarted=new Date(String(settings.last_sync_at).replace(' ','T')+'+05:30').getTime();
+    if(Number.isFinite(leaseStarted) && (Date.now()-leaseStarted)<60000) {
+      return {ok:true,skipped:true,message:'Another sync is already in progress.'};
+    }
+  }
   if(!force && settings.last_sync_at) {
     const last=new Date(String(settings.last_sync_at).replace(' ','T')+'+05:30').getTime();
     if(Number.isFinite(last) && (Date.now()-last)<30000) return {ok:true,skipped:true,message:'Already up to date.',last_sync_at:settings.last_sync_at};
   }
+  // Acquire a database-backed lease. Browser clients and serverless instances
+  // can request the same sync simultaneously; without this compare-and-set,
+  // two replacement transactions can both insert the snapshot.
+  const leaseAt=indiaDateTimeString();
+  let leaseQuery=db().from('google_sheet_settings')
+    .update({last_sync_at:leaseAt,last_sync_status:'running',last_sync_message:'Sync in progress...'})
+    .eq('id',1);
+  leaseQuery=settings.last_sync_at==null?leaseQuery.is('last_sync_at',null):leaseQuery.eq('last_sync_at',settings.last_sync_at);
+  const {data:lease,error:leaseError}=await leaseQuery.select('id').maybeSingle();
+  if(leaseError) throw new Error(leaseError.message);
+  if(!lease) return {ok:true,skipped:true,message:'Another sync is already in progress.'};
   try {
     const info=parseGoogleSheetUrl(url);
     const tabs=await discoverMonthlyTabs(info.sheet_id,info.gid);
@@ -316,6 +340,21 @@ async function syncGoogleSheet(force=false) {
       }
     }
     if(!parsed.length) throw userError('No task rows could be read. Check the Date and Tasks columns in the connected sheet tab.');
+    // Google occasionally returns an incomplete workbook/tab list while it is
+    // recalculating. Never let that transient response delete a previously
+    // synced month or replace the snapshot with a sharply smaller result.
+    const existingSheetTasks=await fetchAll(()=>db().from('tasks').select('source_sheet_key,source_row').eq('source','google_sheet'));
+    const existingKeys=new Set(existingSheetTasks.map(task=>String(task.source_sheet_key||'')).filter(Boolean));
+    const incomingKeys=new Set(parsed.map(task=>String(task.sheet_key||'')).filter(Boolean));
+    const missingKeys=[...existingKeys].filter(key=>!incomingKeys.has(key));
+    if(missingKeys.length) {
+      throw userError(`Google Sheets temporarily omitted ${missingKeys.length} previously synced tab${missingKeys.length===1?'':'s'}. The existing data was kept; retry shortly.`);
+    }
+    const existingRows=new Set(existingSheetTasks.map(task=>`${task.source_sheet_key||''}:${task.source_row||''}`));
+    const incomingRows=new Set(parsed.map(task=>`${task.sheet_key||''}:${task.row_number||''}`));
+    if(existingRows.size>=100 && incomingRows.size<existingRows.size*0.8) {
+      throw userError(`Google Sheets returned only ${incomingRows.size} task rows, much fewer than the existing ${existingRows.size}. The existing data was kept; retry shortly.`);
+    }
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
     const now=indiaDateTimeString();
     const snapshot=resolveCarriedTaskStatuses(parsed.map(item=>({
