@@ -67,11 +67,9 @@ function parsePublicSheetTabs(html) {
   return tabs;
 }
 async function discoverMonthlyTabs(sheetId, fallbackGid) {
-  try {
-    const html=await httpGetText(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`);
-    const monthly=parsePublicSheetTabs(html).filter(tab=>MONTH_TAB_RE.test(tab.title));
-    if(monthly.length) return monthly;
-  } catch(_) {}
+  // The configured URL identifies the exact tab that should feed the app.
+  // Importing every month-like tab mixes historical workbook data into the
+  // current task snapshot and makes date-based dashboard analysis misleading.
   return [{gid:String(fallbackGid||'0'),title:''}];
 }
 

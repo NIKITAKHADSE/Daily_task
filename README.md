@@ -76,7 +76,7 @@ It transparently rewrites that path to the new Vercel API Function, so the exist
 The existing Google Sheet connection is preserved. The application still:
 
 - accepts the normal Google Sheet browser URL
-- discovers and reads every compatible month/year tab (for example, July 2026 and August 2026)
+- reads only the exact tab selected by the `gid` in the connected Google Sheet URL
 - requires **Anyone with the link → Viewer**
 - reads Google CSV output without Google OAuth/API credentials
 - uses the same column mapping

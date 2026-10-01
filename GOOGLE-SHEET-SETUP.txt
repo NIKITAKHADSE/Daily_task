@@ -4,7 +4,7 @@ GOOGLE SHEET CONNECTION - SIMPLE GUIDE
 Your existing daily Google Sheet can stay exactly as it is.
 
 STEP 1
-Open any monthly tab in the Google Sheet. The app automatically imports all compatible month/year tabs in that workbook.
+Open the exact tab in the Google Sheet that should feed the app. The app imports only the tab selected in the copied link.
 
 STEP 2
 Click Share -> General access -> Anyone with the link -> Viewer.
