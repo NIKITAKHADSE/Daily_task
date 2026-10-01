@@ -56,7 +56,13 @@ async function httpGetText(url) {
   } finally { clearTimeout(timer); }
 }
 
-const MONTH_TAB_RE=/\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.*\b(20\d{2})\b/i;
+const MONTH_NAMES=['january','february','march','april','may','june','july','august','september','october','november','december'];
+const MONTH_TAB_RE=new RegExp(`\\b(${MONTH_NAMES.join('|')})\\b.*\\b(20\\d{2})\\b`,'i');
+function monthTabPeriod(title) {
+  const match=String(title||'').match(MONTH_TAB_RE);
+  if(!match) return null;
+  return {month:MONTH_NAMES.indexOf(match[1].toLowerCase())+1,year:Number(match[2])};
+}
 function parsePublicSheetTabs(html) {
   const tabs=[];
   const seen=new Set();
@@ -71,10 +77,24 @@ function parsePublicSheetTabs(html) {
   return tabs;
 }
 async function discoverMonthlyTabs(sheetId, fallbackGid) {
-  // The configured URL identifies the exact tab that should feed the app.
-  // Importing every month-like tab mixes historical workbook data into the
-  // current task snapshot and makes date-based dashboard analysis misleading.
-  return [{gid:String(fallbackGid||'0'),title:''}];
+  const selectedGid=String(fallbackGid||'0');
+  try {
+    const html=await httpGetText(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`);
+    const tabs=parsePublicSheetTabs(html);
+    const selected=tabs.find(tab=>String(tab.gid)===selectedGid);
+    const selectedPeriod=monthTabPeriod(selected?.title);
+    if(!selected || !selectedPeriod) return [{gid:selectedGid,title:selected?.title||''}];
+
+    const previousMonth=selectedPeriod.month===1?12:selectedPeriod.month-1;
+    const previousYear=selectedPeriod.month===1?selectedPeriod.year-1:selectedPeriod.year;
+    const previous=tabs.find(tab=>{
+      const period=monthTabPeriod(tab.title);
+      return period?.month===previousMonth && period.year===previousYear;
+    });
+    return previous ? [selected,previous] : [selected];
+  } catch(_) {
+    return [{gid:selectedGid,title:''}];
+  }
 }
 
 function csvRows(csv) {
@@ -86,6 +106,21 @@ function findSheetHeader(rows) {
     const map = {};
     rows[rowIndex].forEach((cell,i) => { const k=canonicalSheetHeader(cell); if(k&&!Object.prototype.hasOwnProperty.call(map,k)) map[k]=i; });
     if (map.tasks !== undefined && map.date !== undefined) return [rowIndex,map];
+  }
+  // Some older monthly tabs publish their data through Google CSV but omit
+  // the formatted header row. Accept the workbook's established A-L layout
+  // only when several rows clearly contain a date, task, and editor.
+  const sample=rows.slice(0,20);
+  const matchingRows=sample.filter(row=>
+    /^\d{1,2}\s+[A-Za-z]+(?:\s+\d{4})?$/.test(String(row[0]||'').trim()) &&
+    String(row[5]||'').trim() && String(row[7]||'').trim()
+  );
+  if(matchingRows.length>=3) {
+    const firstDataIndex=rows.findIndex(row=>matchingRows.includes(row));
+    return [firstDataIndex-1,{
+      date:0,day:1,name:2,type:3,poc:4,tasks:5,contentresponsible:6,
+      responsibleeditor:7,referencelinks:8,copy:9,priority:10,remarksfilledbyeditors:11
+    }];
   }
   throw userError('Could not find the header row. Keep column names like Date, Name, Type, Tasks and Responsible editor in the sheet.');
 }
@@ -387,4 +422,4 @@ async function syncGoogleSheet(force=false) {
   }
 }
 
-module.exports = { parseGoogleSheetUrl, parsePublicSheetTabs, testGoogleSheet, syncGoogleSheet, getSettings };
+module.exports = { parseGoogleSheetUrl, parsePublicSheetTabs, discoverMonthlyTabs, csvRows, findSheetHeader, testGoogleSheet, syncGoogleSheet, getSettings };
