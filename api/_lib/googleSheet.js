@@ -346,13 +346,17 @@ async function syncGoogleSheet(force=false) {
     const existingSheetTasks=await fetchAll(()=>db().from('tasks').select('source_sheet_key,source_row').eq('source','google_sheet'));
     const existingKeys=new Set(existingSheetTasks.map(task=>String(task.source_sheet_key||'')).filter(Boolean));
     const incomingKeys=new Set(parsed.map(task=>String(task.sheet_key||'')).filter(Boolean));
+    // If the configured gid is new, the administrator intentionally switched
+    // tabs. Allow that first replacement instead of treating the old tab as a
+    // transient omission. Subsequent syncs retain the normal omission guards.
+    const intentionalTabSwitch=existingKeys.size>0 && !existingKeys.has(info.sheet_key) && incomingKeys.has(info.sheet_key);
     const missingKeys=[...existingKeys].filter(key=>!incomingKeys.has(key));
-    if(missingKeys.length) {
+    if(missingKeys.length && !intentionalTabSwitch) {
       throw userError(`Google Sheets temporarily omitted ${missingKeys.length} previously synced tab${missingKeys.length===1?'':'s'}. The existing data was kept; retry shortly.`);
     }
     const existingRows=new Set(existingSheetTasks.map(task=>`${task.source_sheet_key||''}:${task.source_row||''}`));
     const incomingRows=new Set(parsed.map(task=>`${task.sheet_key||''}:${task.row_number||''}`));
-    if(existingRows.size>=100 && incomingRows.size<existingRows.size*0.8) {
+    if(!intentionalTabSwitch && existingRows.size>=100 && incomingRows.size<existingRows.size*0.8) {
       throw userError(`Google Sheets returned only ${incomingRows.size} task rows, much fewer than the existing ${existingRows.size}. The existing data was kept; retry shortly.`);
     }
     const {userMap,catMap}=await ensureUsersAndCategories(parsed);
